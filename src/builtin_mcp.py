@@ -82,6 +82,71 @@ _BUILTIN_NPX_SERVERS = {
     },
 }
 
+# VoidCat RDC MCP suite — mirrors the suite in Claude Desktop
+_CMC_DIR = r"C:\Users\Wykeve\Projects\The Great Library\07_Systems\Ongoing\CMC\Causal-Memory-Core"
+_PANTHEON_MEMORY_DIR = r"C:\Users\Wykeve\Projects\pantheon-memory-core"
+
+
+def _voidcat_entrypoint_ready(cfg: dict) -> tuple[bool, str]:
+    """Return whether a VoidCat MCP server can start, and a detail string."""
+    command = (cfg.get("command") or "").strip()
+    args = cfg.get("args") or []
+    if command == "uv" and len(args) >= 2 and args[0] == "--directory":
+        project_dir = args[1]
+        entry = os.path.join(project_dir, "server.py")
+        if os.path.exists(entry):
+            return True, entry
+        return False, entry
+    if args:
+        entry = args[0]
+        if os.path.exists(entry):
+            return True, entry
+        return False, entry
+    return False, command or "(missing command)"
+
+
+def _voidcat_env(cfg: dict) -> dict:
+    env = dict(cfg.get("env") or {})
+    specstory_key = os.getenv("SPECSTORY_API_KEY", "").strip()
+    if specstory_key:
+        env["SPECSTORY_API_KEY"] = specstory_key
+    return env
+
+
+_VOIDCAT_SERVERS = {
+    "voiddispatch": {
+        "name": "VoidCat: VoidDispatcher",
+        "command": "python",
+        "args": [
+            r"C:\Users\Wykeve\Projects\The Great Library\07_Systems\Ongoing\VoidDispatcher\src\void_dispatcher.py",
+        ],
+        "env": {},
+    },
+    "pantheon-memory-core": {
+        "name": "VoidCat: Pantheon Memory Core",
+        "command": "uv",
+        "args": [
+            "--directory",
+            _PANTHEON_MEMORY_DIR,
+            "run",
+            "server.py",
+        ],
+        "env": {},
+        "requires_env": ("SPECSTORY_API_KEY",),
+    },
+    "causal-memory-core": {
+        "name": "VoidCat: Causal Memory Core",
+        "command": "python",
+        "args": [
+            rf"{_CMC_DIR}\src\mcp_server.py",
+        ],
+        "env": {
+            "PYTHONPATH": _CMC_DIR,
+            "DB_PATH": rf"{_CMC_DIR}\causal_memory.db",
+        },
+    },
+}
+
 # Global flag to disable MCP if there are compatibility issues
 MCP_DISABLED = os.environ.get("ODYSSEUS_DISABLE_MCP", "").lower() in ("1", "true", "yes")
 
@@ -173,6 +238,45 @@ async def register_builtin_servers(mcp_manager):
                 logger.warning(f"Built-in NPX server {cfg['name']} error: {type(e).__name__}: {e}")
 
     asyncio.create_task(_start_npx_servers())
+
+    async def _start_voidcat_servers():
+        await asyncio.sleep(5)  # let built-in servers settle first
+        for server_id, cfg in _VOIDCAT_SERVERS.items():
+            ready, detail = _voidcat_entrypoint_ready(cfg)
+            if not ready:
+                logger.warning(
+                    f"{cfg['name']} not available - entrypoint not found: {detail}"
+                )
+                continue
+            missing_env = [
+                key for key in cfg.get("requires_env", ())
+                if not os.getenv(key, "").strip()
+            ]
+            if missing_env:
+                logger.warning(
+                    f"{cfg['name']} not available - missing env: {', '.join(missing_env)}"
+                )
+                continue
+            logger.info(f"Starting VoidCat MCP server: {cfg['name']}")
+            try:
+                ok = await mcp_manager.connect_server(
+                    server_id=server_id,
+                    name=cfg["name"],
+                    transport="stdio",
+                    command=cfg["command"],
+                    args=cfg["args"],
+                    env=_voidcat_env(cfg),
+                )
+                if ok:
+                    logger.info(f"VoidCat MCP server registered: {cfg['name']}")
+                else:
+                    logger.warning(f"VoidCat MCP server failed to connect: {cfg['name']}")
+            except asyncio.CancelledError:
+                raise
+            except BaseException as e:
+                logger.warning(f"VoidCat MCP server {cfg['name']} error: {type(e).__name__}: {e}")
+
+    asyncio.create_task(_start_voidcat_servers())
 
 
 def _npx_package_from_args(args):

@@ -1333,6 +1333,16 @@ async def execute_tool_block(
     elif tool == "update_document":
         desc = f"update_document: {content.split(chr(10))[0][:60]}"
         result = await do_update_document(content, owner=owner)
+    elif tool == "update_grimoire":
+        try:
+            from src.voidcat_tools import execute_update_grimoire
+            import json
+            args = json.loads(content)
+            output = execute_update_grimoire(args)
+            result = {"output": output, "exit_code": 0 if "Success" in output else 1}
+        except Exception as e:
+            result = {"error": str(e), "exit_code": 1}
+        desc = "update_grimoire"
     elif tool == "edit_document":
         result = await do_edit_document(content, owner=owner)
         desc = f"edit_document: {result.get('title', '')}"

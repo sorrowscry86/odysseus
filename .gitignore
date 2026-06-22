@@ -75,6 +75,10 @@ output.txt.txt
 !docs/**/*.jpg
 !docs/**/*.gif
 !docs/**/*.webp
+# …and VoidCat brand + spirit portrait assets shipped with the UI.
+!static/voidcat-logo.jpg
+!static/spirits/*.jpg
+!launcher/voidcat-logo.jpg
 
 # Reports and temp files
 reports/

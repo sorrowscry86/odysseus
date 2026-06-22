@@ -175,6 +175,7 @@ _TOOL_NAME_MAP = {
     "notes": "manage_notes",
     "todo": "manage_notes",
     "todos": "manage_notes",
+    "update_grimoire": "update_grimoire",
 }
 
 _MISFENCED_WEB_TOOL_NAMES = {
