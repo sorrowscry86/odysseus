@@ -1,0 +1,21 @@
+{
+  "name": "codacy_get_pattern",
+  "description": "Get the definition of a specific pattern. \n \n  Common use cases: \n  - When the user asks for the definition of a specific pattern\n  - When the user asks for more information about an issue found by Codacy\n\n  Common mistakes: \n  - Using this tool with the wrong toolUuid\n  - Using this tool with the wrong patternId\n",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "toolUuid": {
+        "type": "string",
+        "description": "The identifier of the tool that the pattern belongs to."
+      },
+      "patternId": {
+        "type": "string",
+        "description": "Pattern identifier"
+      }
+    },
+    "required": [
+      "toolUuid",
+      "patternId"
+    ]
+  }
+}

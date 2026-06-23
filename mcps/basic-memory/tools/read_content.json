@@ -1,0 +1,26 @@
+{
+  "name": "read_content",
+  "description": "Read a file's raw content by path or permalink",
+  "inputSchema": {
+    "properties": {
+      "path": {
+        "type": "string"
+      },
+      "project": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      }
+    },
+    "required": [
+      "path"
+    ],
+    "type": "object"
+  }
+}

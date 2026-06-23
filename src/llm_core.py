@@ -1221,6 +1221,98 @@ def llm_call_with_fallback(candidates, messages, **kwargs) -> str:
     raise last_err if last_err else HTTPException(503, "All fallback candidates failed")
 
 
+async def llm_call_with_tools_async(
+    url: str,
+    model: str,
+    messages: List[Dict],
+    tools: List[Dict],
+    headers: Optional[Dict] = None,
+    temperature: float = LLMConfig.DEFAULT_TEMPERATURE,
+    max_tokens: int = LLMConfig.DEFAULT_MAX_TOKENS,
+    timeout: int = LLMConfig.STREAM_TIMEOUT,
+) -> tuple[str, list]:
+    """
+    Non-streaming LLM call with OpenAI function calling support.
+
+    Returns (content: str, tool_calls: list[dict]).
+    content is the text response; tool_calls is the raw list from the
+    response message — empty list if the model chose not to call tools.
+    """
+    provider = _detect_provider(url)
+    messages_copy = _sanitize_llm_messages(messages)
+
+    sys_parts = []
+    non_sys = []
+    for m in messages_copy:
+        if m.get("role") == "system":
+            sys_parts.append(m.get("content") or "")
+        else:
+            non_sys.append(m)
+    messages_copy = ([{"role": "system", "content": "\n\n".join(sys_parts)}] + non_sys) if sys_parts else non_sys
+
+    if provider == "anthropic":
+        target_url = _normalize_anthropic_url(url)
+        h = _build_anthropic_headers(headers)
+        payload = _build_anthropic_payload(model, messages_copy, temperature, max_tokens, tools=tools)
+    elif provider == "ollama":
+        target_url = _normalize_ollama_url(url)
+        h = {"Content-Type": "application/json"}
+        if headers:
+            h.update(headers)
+        payload = _build_ollama_payload(
+            model, messages_copy, temperature, max_tokens,
+            stream=False, tools=tools, num_ctx=get_context_length(url, model),
+        )
+    else:
+        target_url = url
+        h = _provider_headers(provider, headers)
+        payload = {
+            "model": model,
+            "messages": messages_copy,
+            "temperature": temperature,
+            "tools": tools,
+            "tool_choice": "auto",
+        }
+        if _restricts_temperature(model):
+            payload.pop("temperature", None)
+        if max_tokens and max_tokens > 0:
+            tok_key = "max_completion_tokens" if _uses_max_completion_tokens(model) else "max_tokens"
+            payload[tok_key] = max_tokens
+
+    if _is_host_dead(target_url):
+        raise HTTPException(503, f"Upstream {_host_key(target_url)} marked unreachable")
+
+    call_timeout = httpx.Timeout(connect=3.0, read=float(timeout), write=10.0, pool=5.0)
+    client = _get_http_client()
+    r = await client.post(target_url, headers=h, json=payload, timeout=call_timeout)
+    if not r.is_success:
+        friendly = _format_upstream_error(r.status_code, r.text, target_url)
+        raise HTTPException(r.status_code, friendly)
+
+    data = r.json()
+    try:
+        if provider == "anthropic":
+            content = _parse_anthropic_response(data)
+            # Anthropic tool_use blocks live in data["content"]
+            tool_calls = [
+                {"function": {"name": b["name"], "arguments": b.get("input", {})}}
+                for b in data.get("content", [])
+                if isinstance(b, dict) and b.get("type") == "tool_use"
+            ]
+            return content or "", tool_calls
+        elif provider == "ollama":
+            content = _parse_ollama_response(data)
+            tc = data.get("message", {}).get("tool_calls") or []
+            return content or "", tc
+        else:
+            msg = data["choices"][0]["message"]
+            content = msg.get("content") or ""
+            tool_calls = msg.get("tool_calls") or []
+            return content, tool_calls
+    except Exception:
+        raise HTTPException(502, f"Unexpected schema from {target_url}: {str(data)[:400]}")
+
+
 async def llm_call_async_with_fallback(candidates, messages, **kwargs) -> str:
     """Async variant of `llm_call_with_fallback` — same semantics."""
     cands = _dedupe_candidates(candidates)

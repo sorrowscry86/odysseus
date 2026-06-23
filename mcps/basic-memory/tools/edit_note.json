@@ -1,0 +1,60 @@
+{
+  "name": "edit_note",
+  "description": "Edit an existing markdown note using various operations like append, prepend, find_replace, or replace_section.",
+  "inputSchema": {
+    "properties": {
+      "identifier": {
+        "type": "string"
+      },
+      "operation": {
+        "type": "string"
+      },
+      "content": {
+        "type": "string"
+      },
+      "project": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "section": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "find_text": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "expected_replacements": {
+        "default": 1,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "identifier",
+      "operation",
+      "content"
+    ],
+    "type": "object"
+  }
+}

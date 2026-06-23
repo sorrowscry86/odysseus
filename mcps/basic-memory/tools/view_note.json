@@ -1,0 +1,34 @@
+{
+  "name": "view_note",
+  "description": "View a note as a formatted artifact for better readability.",
+  "inputSchema": {
+    "properties": {
+      "identifier": {
+        "type": "string"
+      },
+      "project": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "page": {
+        "default": 1,
+        "type": "integer"
+      },
+      "page_size": {
+        "default": 10,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "identifier"
+    ],
+    "type": "object"
+  }
+}

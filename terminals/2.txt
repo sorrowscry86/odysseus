@@ -1,0 +1,18 @@
+---
+pid: 22780
+cwd: "C:\Users\Wykeve\Projects\The Great Library\odysseus"
+command: "powershell -ExecutionPolicy Bypass -File .\\launch-windows.ps1"
+started_at: 2026-06-15T08:57:18.494Z
+running_for_ms: 77489992 
+---
+At line:1 char:63
++ ... cd "C:\\Users\\Wykeve\\Projects\\The Great Library\\odysseus" ; power ...
++                                                                  ~
+Missing closing ')' in expression.
+At line:1 char:127
++ ... eus" ; powershell -ExecutionPolicy Bypass -File .\launch-windows.ps1)
++                                                                         ~
+Unexpected token ')' in expression or statement.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : MissingEndParenthesisInExpression
+ 

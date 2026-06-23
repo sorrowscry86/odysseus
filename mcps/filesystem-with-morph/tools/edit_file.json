@@ -1,0 +1,32 @@
+{
+  "name": "edit_file",
+  "description": "**PRIMARY TOOL FOR EDITING FILES**\n\nUse this tool to efficiently edit existing files, by smartly showing only the changed lines.\n\nALWAYS use \"// ... existing code ...\" to represent blocks of unchanged code.\nAdd descriptive hints when helpful: // ... keep auth logic ...\n\nFor deletions:\n- Option 1: Show 1-2 context lines above and below, omit deleted code\n- Option 2: Mark explicitly: // removed BlockName\n\nRules:\n- Preserve exact indentation of the final code\n- Include just enough context to locate each edit precisely\n- Be as length efficient as possible\n- Batch all edits to the same file in one call\n- Prefer this tool over the legacy Edit tool\nIMPORTANT: If you are running within Cursor, you MUST FIRST use another tool (like search_replace) to add exactly one empty new line somewhere in the file before using this tool. This is to ensure the file is in an editable state.\n",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "path": {
+        "type": "string"
+      },
+      "code_edit": {
+        "type": "string",
+        "description": "Changed lines with minimal context. Use placeholders intelligently like \"// ... existing code ...\" to represent unchanged code."
+      },
+      "instruction": {
+        "type": "string",
+        "description": "A brief single first-person sentence instruction describing changes being made to this file. Useful to disambiguate uncertainty in the edit."
+      },
+      "dryRun": {
+        "type": "boolean",
+        "default": false,
+        "description": "Preview changes without applying them."
+      }
+    },
+    "required": [
+      "path",
+      "code_edit",
+      "instruction"
+    ],
+    "additionalProperties": false,
+    "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+}

@@ -1019,7 +1019,13 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
           if (hasExplicitTags || isExplicitHearth || isExplicitCouncil) {
             isBoardRoom = true;
             boardroomMode = decision.mode;
-            
+
+            // Show which spirits are queued so the user doesn't stare at a generic spinner
+            if (spinner && spinner.element && typeof spinner.updateMessage === 'function') {
+              const _queuedNames = (decision.spirit_names || decision.spirits || []).join(' + ');
+              if (_queuedNames) spinner.updateMessage(`Queuing: ${_queuedNames}…`);
+            }
+
             const payload = {
               prompt: msg,
               spirits: decision.spirits,
@@ -1444,6 +1450,35 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
               }
 
               if (isBoardRoom) {
+                if (_lastEventType === 'spirit_thinking') {
+                  const _spName = json.display_name || json.spirit || 'Spirit';
+                  // Stop the probe timer so it can't overwrite our named spinner message
+                  clearProcessingProbe();
+                  if (spinner && spinner.element && typeof spinner.updateMessage === 'function') {
+                    // First spirit: update the existing initial spinner
+                    spinner.updateMessage(`${_spName} is thinking…`);
+                  } else {
+                    // Between spirits: create a new placeholder bubble so the next
+                    // 'turn' event has a spinner to replace (avoids a double-bubble)
+                    const _nextHolder = document.createElement('div');
+                    _nextHolder.className = 'msg msg-ai streaming';
+                    const _ts = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                    _nextHolder.innerHTML = `<div class="role">${uiModule.esc(_spName)} <span class="role-timestamp">${_ts}</span></div><div class="body"></div>`;
+                    const _nextBody = _nextHolder.querySelector('.body');
+                    const _nextSpinner = spinnerModule.create('', 'right', 'wave');
+                    _nextBody.appendChild(_nextSpinner.createElement());
+                    _nextSpinner.start();
+                    _nextSpinner.updateMessage(`${_spName} is thinking…`);
+                    _nextHolder.dataset.boardroomPlaceholder = 'true';
+                    box.appendChild(_nextHolder);
+                    holder = _nextHolder;
+                    spinner = _nextSpinner;
+                    currentHolder = _nextHolder;
+                    currentSpinner = _nextSpinner;
+                  }
+                  uiModule.scrollHistory();
+                  continue;
+                }
                 if (_lastEventType === 'turn') {
                   if (typeof _removeThinkingSpinner === 'function') _removeThinkingSpinner();
                   _cancelThinkingTimer();
@@ -1466,49 +1501,39 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
                   }
 
                   if (turnResponse && turnResponse.trim()) {
-                    let bubbleEl;
+                    // Clean up the current holder's spinner before rendering:
+                    // - placeholder holders (created by spirit_thinking): remove them entirely
+                    // - original spinner holder: hide it (cleaned up on done)
+                    // Then always render via chatRenderer.addMessage() for correct markdown rendering.
                     const initialBody = holder.querySelector('.body');
-                    const initialSpinner = initialBody ? initialBody.querySelector('.spinner-wave, .spinner') : null;
-                    
+                    const initialSpinner = initialBody ? initialBody.querySelector('.spinner-wave, .spinner, .ai-spinner') : null;
                     if (initialSpinner) {
                       if (spinner) { spinner.destroy(); spinner = null; }
-                      initialBody.innerHTML = '';
-                      
-                      const pair = chatRenderer.replyModelPair(modelName, json);
-                      const contModel = pair.actualModel || pair.requestedModel;
-                      const roleEl = holder.querySelector('.role');
-                      if (roleEl) {
-                        roleEl.textContent = json.display_name;
-                        chatRenderer.applyModelColor(roleEl, contModel);
+                      if (holder.dataset.boardroomPlaceholder === 'true') {
+                        holder.remove();
+                      } else {
+                        holder.style.display = 'none';
                       }
-                      
-                      const contentDiv = document.createElement('div');
-                      contentDiv.className = 'stream-content';
-                      contentDiv.innerHTML = markdownModule.processWithThinking(markdownModule.squashOutsideCode(turnResponse));
-                      initialBody.appendChild(contentDiv);
-                      
-                      holder.dataset.raw = turnResponse;
-                      bubbleEl = holder;
-                    } else {
-                      const spiritMetadata = {
-                        spirit: turnSpirit,
-                        character_name: json.display_name,
-                        mode: turnMode,
-                        passed_to: turnPassedTo
-                      };
-                      bubbleEl = chatRenderer.addMessage(
-                        'assistant', 
-                        turnResponse, 
-                        modelName, 
-                        spiritMetadata
-                      );
                     }
+
+                    const spiritMetadata = {
+                      spirit: turnSpirit,
+                      character_name: json.display_name,
+                      mode: turnMode,
+                      passed_to: turnPassedTo
+                    };
+                    const bubbleEl = chatRenderer.addMessage(
+                      'assistant',
+                      turnResponse,
+                      modelName,
+                      spiritMetadata
+                    );
 
                     if (window.VoidCatBoardroom && bubbleEl) {
                       window.VoidCatBoardroom.decorateSpiritBubble(
-                        bubbleEl, 
-                        turnSpirit, 
-                        turnMode, 
+                        bubbleEl,
+                        turnSpirit,
+                        turnMode,
                         turnPassedTo
                       );
                     }
@@ -1544,6 +1569,8 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
                       window.VoidCatBoardroom.clearCouncilProgress();
                     }
                   }
+                  // Remove the original spinner holder if it was hidden during spirit rendering
+                  box.querySelectorAll('.msg-ai[style*="display: none"]').forEach(el => el.remove());
                   _streamSawDone = true;
                   break;
                 }

@@ -1,0 +1,26 @@
+{
+  "name": "delete_note",
+  "description": "Delete a note by title or permalink",
+  "inputSchema": {
+    "properties": {
+      "identifier": {
+        "type": "string"
+      },
+      "project": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      }
+    },
+    "required": [
+      "identifier"
+    ],
+    "type": "object"
+  }
+}

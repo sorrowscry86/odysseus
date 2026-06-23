@@ -1,0 +1,15 @@
+{
+  "name": "delete_project",
+  "description": "Delete a Basic Memory project.\n\nRemoves a project from the configuration and database. This does NOT delete\nthe actual files on disk - only removes the project from Basic Memory's\nconfiguration and database records.\n\nArgs:\n    project_name: Name of the project to delete\n\nReturns:\n    Confirmation message about project deletion\n\nExample:\n    delete_project(\"old-project\")\n\nWarning:\n    This action cannot be undone. The project will need to be re-added\n    to access its content through Basic Memory again.",
+  "inputSchema": {
+    "properties": {
+      "project_name": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "project_name"
+    ],
+    "type": "object"
+  }
+}

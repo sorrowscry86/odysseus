@@ -49,6 +49,7 @@ class TurnResult:
     response: str                # The spirit's generated response
     round_num: int               # Which round this belongs to (1-indexed)
     is_final: bool = False       # True if this closes the session
+    is_thinking: bool = False    # Pre-turn signal: spirit is about to generate
     resolution: Optional[str] = None  # Populated when propose_resolution fires
     dissenting_views: Optional[str] = None
     extension_reason: Optional[str] = None  # Why Chair requested extension
@@ -245,13 +246,43 @@ async def run_round_table(
     Each spirit sees the full context including all previous spirits' responses.
     """
     context = list(initial_context)
-    spirits = decision.spirits
+    spirits = list(decision.spirits)
 
-    for spirit in spirits:
-        response = await _generate_response(spirit, context, generate_fn)
+    for i, spirit in enumerate(spirits):
         display = _display_name(spirit)
 
-        # Accumulate response into context for the next spirit
+        # Signal that this spirit is about to generate so the frontend can show
+        # a named spinner bubble before the model call starts.
+        yield TurnResult(
+            spirit=spirit,
+            display_name=display,
+            mode="round_table",
+            response="",
+            round_num=i + 1,
+            is_thinking=True,
+        )
+
+        # Build the call context.
+        # For spirits after the first, append a user cue so the conversation
+        # ends on a user-role message rather than an assistant-role message.
+        # Without this, some models treat the next generation as a continuation
+        # of the previous assistant turn and produce truncated/corrupted output.
+        call_context = list(context)
+        if i > 0:
+            call_context.append({
+                "role": "user",
+                "content": f"[{display}], please share your perspective.",
+            })
+
+        response = await _generate_response(spirit, call_context, generate_fn)
+
+        # Persist to context for subsequent spirits: include the cue message so
+        # the context maintains proper user→assistant pairs throughout the session.
+        if i > 0:
+            context.append({
+                "role": "user",
+                "content": f"[{display}], please share your perspective.",
+            })
         context.append({"role": "assistant", "content": f"[{display}]: {response}"})
 
         # Check for pass_turn
@@ -265,7 +296,7 @@ async def run_round_table(
             display_name=display,
             mode="round_table",
             response=response,
-            round_num=1,
+            round_num=i + 1,
             is_final=is_final,
             passed_to=passed_to,
         )
@@ -432,8 +463,17 @@ async def run_hearth(
             logger.debug("Hearth: no spirit scored above threshold. Going quiet.")
             break
 
-        response = await _generate_response(next_spirit, context, generate_fn)
         display = _display_name(next_spirit)
+        yield TurnResult(
+            spirit=next_spirit,
+            display_name=display,
+            mode="hearth",
+            response="",
+            round_num=turn_count + 1,
+            is_thinking=True,
+        )
+
+        response = await _generate_response(next_spirit, context, generate_fn)
         context.append({"role": "assistant", "content": f"[{display}]: {response}"})
 
         passed_to = _detect_pass_turn(response)

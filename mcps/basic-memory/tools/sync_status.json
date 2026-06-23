@@ -1,0 +1,20 @@
+{
+  "name": "sync_status",
+  "description": "Check the status of file synchronization and background operations.\n    \n    Use this tool to:\n    - Check if file sync is in progress or completed\n    - Get detailed sync progress information  \n    - Understand if your files are fully indexed\n    - Get specific error details if sync operations failed\n    - Monitor initial project setup and legacy migration\n    \n    This covers all sync operations including:\n    - Initial project setup and file indexing\n    - Legacy project migration to unified database\n    - Ongoing file monitoring and updates\n    - Background processing of knowledge graphs\n    ",
+  "inputSchema": {
+    "properties": {
+      "project": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      }
+    },
+    "type": "object"
+  }
+}

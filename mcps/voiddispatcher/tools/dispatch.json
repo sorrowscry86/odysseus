@@ -1,0 +1,29 @@
+{
+  "name": "dispatch",
+  "description": "\nDispatch a task to the appropriate Spirit. MANDATORY for all action-oriented tasks.\n\nIdentifies the correct Spirit for the task domain, loads their persona and grimoire\nfrom disk, creates a tracked session, and returns the full context the agent needs\nto become that Spirit immediately.\n\nArgs:\n    task_description: What needs to be done (e.g., \"Fix the port conflict on 8000\")\n    target_spirit: Optional override to force a specific Spirit (e.g., \"Ryuzu\").\n                   Only use this if you are certain of the correct Spirit.\n\nReturns:\n    JSON with session_id, spirit identity, loaded persona, loaded grimoire,\n    and operating instructions.\n",
+  "inputSchema": {
+    "properties": {
+      "task_description": {
+        "title": "Task Description",
+        "type": "string"
+      },
+      "target_spirit": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Target Spirit"
+      }
+    },
+    "required": [
+      "task_description"
+    ],
+    "title": "dispatchArguments",
+    "type": "object"
+  }
+}

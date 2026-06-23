@@ -1,0 +1,20 @@
+{
+  "name": "inscribe_pantheon_record",
+  "description": "Writes a new session into the SpecStory archive to document local spirit activity.",
+  "inputSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "title": {
+        "type": "string"
+      },
+      "content_markdown": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "title",
+      "content_markdown"
+    ],
+    "type": "object"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "browser_go_back",
+  "description": "Go back to the previous page",
+  "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false,
+    "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+}

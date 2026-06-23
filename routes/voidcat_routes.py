@@ -293,6 +293,16 @@ def setup_voidcat_routes(session_manager) -> APIRouter:
         async def stream():
             try:
                 async for turn in run_round_table(decision, initial_context, generate_fn):
+                    # Pre-turn thinking signal — tells the frontend which spirit is generating
+                    if turn.is_thinking:
+                        yield _sse("spirit_thinking", {
+                            "spirit": turn.spirit,
+                            "display_name": turn.display_name,
+                            "mode": turn.mode,
+                            "round_num": turn.round_num,
+                        })
+                        continue
+
                     # Persist turn to session history
                     if req.session_id:
                         try:
@@ -372,6 +382,15 @@ def setup_voidcat_routes(session_manager) -> APIRouter:
         async def stream():
             try:
                 async for turn in run_council(decision, initial_context, generate_fn, max_rounds=max_rounds):
+                    if turn.is_thinking:
+                        yield _sse("spirit_thinking", {
+                            "spirit": turn.spirit,
+                            "display_name": turn.display_name,
+                            "mode": turn.mode,
+                            "round_num": turn.round_num,
+                        })
+                        continue
+
                     # Persist turn to session history
                     if req.session_id:
                         try:
@@ -445,6 +464,15 @@ def setup_voidcat_routes(session_manager) -> APIRouter:
         async def stream():
             try:
                 async for turn in run_hearth(spirits, initial_context, generate_fn):
+                    if turn.is_thinking:
+                        yield _sse("spirit_thinking", {
+                            "spirit": turn.spirit,
+                            "display_name": turn.display_name,
+                            "mode": turn.mode,
+                            "round_num": turn.round_num,
+                        })
+                        continue
+
                     # Persist turn to session history
                     if req.session_id:
                         try:

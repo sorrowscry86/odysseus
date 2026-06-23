@@ -2421,6 +2421,16 @@ export function addMessage(role, content, modelName, metadata) {
     if (role === 'assistant' && markdownModule.renderMermaid) {
       markdownModule.renderMermaid(wrap);
     }
+
+    // Re-decorate boardroom spirit bubbles on reload
+    if (role === 'assistant' && metadata?.spirit && window.VoidCatBoardroom) {
+      try {
+        window.VoidCatBoardroom.decorateSpiritBubble(wrap, metadata.spirit, metadata.mode || 'audience', metadata.passed_to);
+      } catch (err) {
+        console.warn('Failed to decorate spirit bubble:', err);
+      }
+    }
+
     return wrap;
   } catch (error) {
     console.error('Error in addMessage:', error);

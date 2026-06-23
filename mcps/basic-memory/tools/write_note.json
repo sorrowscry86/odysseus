@@ -1,0 +1,42 @@
+{
+  "name": "write_note",
+  "description": "Create or update a markdown note. Returns a markdown formatted summary of the semantic content.",
+  "inputSchema": {
+    "properties": {
+      "title": {
+        "type": "string"
+      },
+      "content": {
+        "type": "string"
+      },
+      "folder": {
+        "type": "string"
+      },
+      "project": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "tags": {
+        "default": null,
+        "title": "Tags"
+      },
+      "entity_type": {
+        "default": "note",
+        "type": "string"
+      }
+    },
+    "required": [
+      "title",
+      "content",
+      "folder"
+    ],
+    "type": "object"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "retrieve_session_tome",
+  "description": "Retrieves the raw markdown and code blocks of a specific SpecStory session.",
+  "inputSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "session_id": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "session_id"
+    ],
+    "type": "object"
+  }
+}

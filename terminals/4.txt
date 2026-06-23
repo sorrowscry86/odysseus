@@ -1,0 +1,7 @@
+---
+pid: 28400
+cwd: "C:\Users\Wykeve\Projects\The Great Library\odysseus"
+command: "cmd /c \"wscript.exe \\\"C:\\Users\\Wykeve\\Projects\\The Great Library\\odysseus\\Odysseus.vbs\\\"\""
+started_at: 2026-06-15T09:02:17.390Z
+running_for_ms: 77185001 
+---

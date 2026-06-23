@@ -1,0 +1,74 @@
+{
+  "name": "build_context",
+  "description": "Build context from a memory:// URI to continue conversations naturally.\n\n    Use this to follow up on previous discussions or explore related topics.\n\n    Memory URL Format:\n    - Use paths like \"folder/note\" or \"memory://folder/note\"\n    - Pattern matching: \"folder/*\" matches all notes in folder\n    - Valid characters: letters, numbers, hyphens, underscores, forward slashes\n    - Avoid: double slashes (//), angle brackets (<>), quotes, pipes (|)\n    - Examples: \"specs/search\", \"projects/basic-memory\", \"notes/*\"\n\n    Timeframes support natural language like:\n    - \"2 days ago\", \"last week\", \"today\", \"3 months ago\"\n    - Or standard formats like \"7d\", \"24h\"\n    ",
+  "inputSchema": {
+    "$defs": {
+      "StringOrInt": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "integer"
+          }
+        ]
+      }
+    },
+    "properties": {
+      "url": {
+        "maxLength": 2028,
+        "minLength": 1,
+        "type": "string"
+      },
+      "project": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "depth": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/StringOrInt"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": 1
+      },
+      "timeframe": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": "7d"
+      },
+      "page": {
+        "default": 1,
+        "type": "integer"
+      },
+      "page_size": {
+        "default": 10,
+        "type": "integer"
+      },
+      "max_related": {
+        "default": 10,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "url"
+    ],
+    "type": "object"
+  }
+}
