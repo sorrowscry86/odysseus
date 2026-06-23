@@ -7,6 +7,14 @@ logger = logging.getLogger(__name__)
 # The Pantheon is mounted into the container at /app/pantheon
 PANTHEON_ROOT = os.getenv("PANTHEON_ROOT", "/app/pantheon/01_Active_Profiles")
 
+
+def _assert_not_immutable(path: str) -> None:
+    """Raise PermissionError if path targets persona.md — immutable by law."""
+    if os.path.basename(path) == "persona.md":
+        raise PermissionError(
+            f"persona.md is immutable — writes are forbidden: {path}"
+        )
+
 VOIDCAT_TOOL_SCHEMAS = [
     {
         "type": "function",
@@ -113,6 +121,7 @@ def execute_update_grimoire(args: Dict[str, Any]) -> str:
     grimoire_path = os.path.join(spirit_dir, "grimoire.md")
 
     try:
+        _assert_not_immutable(grimoire_path)  # Guard against persona.md writes
         # Append knowledge to grimoire
         with open(grimoire_path, "a", encoding="utf-8") as f:
             f.write(f"\n\n### Session Learning\n- {knowledge}\n")
