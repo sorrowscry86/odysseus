@@ -128,10 +128,30 @@ def _sse(event: str, data: Any) -> str:
 # ---------------------------------------------------------------------------
 
 def setup_voidcat_routes(session_manager) -> APIRouter:
-    router = APIRouter(prefix="/api/voidcat", tags=["voidcat"])
+    router = APIRouter()
+
+    # ── GET /api/spirits ──────────────────────────────────────────
+    @router.get("/api/spirits")
+    async def get_spirits():
+        """Return the spirit roster from the Pantheon mount."""
+        try:
+            from src.dispatcher import _load_spirit_roster, PANTHEON_ROOT
+            roster = _load_spirit_roster()
+            result = []
+            for folder in roster:
+                grimoire_path = os.path.join(PANTHEON_ROOT, folder, "grimoire.md")
+                result.append({
+                    "folder": folder,
+                    "display_name": _display_name(folder),
+                    "has_grimoire": os.path.isfile(grimoire_path),
+                })
+            return result
+        except Exception as e:
+            logger.warning(f"Failed to load spirit roster: {e}")
+            return []
 
     # ── GET /api/voidcat/spirits ──────────────────────────────────────────
-    @router.get("/spirits")
+    @router.get("/api/voidcat/spirits")
     async def list_spirits():
         """Return all available spirits from the mounted Pantheon."""
         roster = _load_spirit_roster()
@@ -147,7 +167,7 @@ def setup_voidcat_routes(session_manager) -> APIRouter:
         return {"spirits": spirits}
 
     # ── GET /api/voidcat/spirit/{name} ────────────────────────────────────
-    @router.get("/spirit/{name}")
+    @router.get("/api/voidcat/spirit/{name}")
     async def get_spirit(name: str):
         """Return a single spirit's metadata and persona excerpt."""
         ctx = get_spirit_context(name)
@@ -162,7 +182,7 @@ def setup_voidcat_routes(session_manager) -> APIRouter:
         }
 
     # ── POST /api/voidcat/dispatch ────────────────────────────────────────
-    @router.post("/dispatch")
+    @router.post("/api/voidcat/dispatch")
     async def dispatch_prompt(req: DispatchRequest):
         """
         Analyze a prompt and return the Board Room routing decision.
@@ -180,7 +200,7 @@ def setup_voidcat_routes(session_manager) -> APIRouter:
         }
 
     # ── POST /api/voidcat/audience ────────────────────────────────────────
-    @router.post("/audience")
+    @router.post("/api/voidcat/audience")
     async def audience(req: BoardRoomRequest, request: Request):
         """
         Execute a single-spirit Audience session.
@@ -251,7 +271,7 @@ def setup_voidcat_routes(session_manager) -> APIRouter:
         return StreamingResponse(stream(), media_type="text/event-stream")
 
     # ── POST /api/voidcat/round_table ─────────────────────────────────────
-    @router.post("/round_table")
+    @router.post("/api/voidcat/round_table")
     async def round_table(req: BoardRoomRequest, request: Request):
         """
         Execute a Round Table session. Streams TurnResult events via SSE.
@@ -338,7 +358,7 @@ def setup_voidcat_routes(session_manager) -> APIRouter:
         return StreamingResponse(stream(), media_type="text/event-stream")
 
     # ── POST /api/voidcat/council ─────────────────────────────────────────
-    @router.post("/council")
+    @router.post("/api/voidcat/council")
     async def council(req: BoardRoomRequest, request: Request):
         """
         Execute a Council deliberation session. Streams TurnResult events via SSE.
@@ -436,7 +456,7 @@ def setup_voidcat_routes(session_manager) -> APIRouter:
         return StreamingResponse(stream(), media_type="text/event-stream")
 
     # ── POST /api/voidcat/hearth ──────────────────────────────────────────
-    @router.post("/hearth")
+    @router.post("/api/voidcat/hearth")
     async def hearth(req: BoardRoomRequest, request: Request):
         """
         Execute a Hearth (open lounge) session. Streams TurnResult events via SSE.
