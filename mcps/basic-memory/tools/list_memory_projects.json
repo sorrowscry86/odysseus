@@ -1,0 +1,8 @@
+{
+  "name": "list_memory_projects",
+  "description": "List all available projects with their status.\n\nShows all Basic Memory projects that are available for MCP operations.\nUse this tool to discover projects when you need to know which project to use.\n\nUse this tool:\n- At conversation start when project is unknown\n- When user asks about available projects\n- Before any operation requiring a project\n\nAfter calling:\n- Ask user which project to use\n- Remember their choice for the session\n\nReturns:\n    Formatted list of projects with session management guidance\n\nExample:\n    list_memory_projects()",
+  "inputSchema": {
+    "properties": {},
+    "type": "object"
+  }
+}

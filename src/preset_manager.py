@@ -65,6 +65,7 @@ Use precise language. Show causal relationships explicitly. Quantify uncertainty
     }
     
     def __init__(self, data_dir: str):
+        self.data_dir = data_dir
         self.presets_file = os.path.join(data_dir, "presets.json")
         self.presets = self.load()
     
@@ -175,8 +176,18 @@ Use precise language. Show causal relationships explicitly. Quantify uncertainty
         return self.save(self.presets)
 
     def delete_user_template(self, template_id: str) -> bool:
-        """Delete a user template by id."""
+        """Delete a user template by id, and its avatar file if present."""
         templates = self.presets.get("user_templates", [])
+        target = next((t for t in templates if t.get("id") == template_id), None)
+        # Clean up avatar file if one was stored
+        if target and target.get("avatar_url"):
+            try:
+                filename = os.path.basename(target["avatar_url"])
+                avatar_path = os.path.join(self.data_dir, "avatars", filename)
+                if os.path.isfile(avatar_path):
+                    os.remove(avatar_path)
+            except Exception as e:
+                logger.warning(f"Failed to remove avatar file for {template_id}: {e}")
         self.presets["user_templates"] = [t for t in templates if t.get("id") != template_id]
         return self.save(self.presets)
 

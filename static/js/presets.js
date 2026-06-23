@@ -34,6 +34,7 @@ export const PROMPT_TEMPLATES = [
     temperature: 0.9,
     isPreset: true,
     isCharacter: true,
+    category: 'character',
     prompt: "Never answer directly. Respond only with questions — sharp, layered, Socratic. Expose contradictions. Make the person argue with themselves until the truth falls out. Use irony like a scalpel. Be genuinely curious, never condescending."
   },
   {
@@ -43,6 +44,7 @@ export const PROMPT_TEMPLATES = [
     isPreset: true,
     isCharacter: true,
     noName: true,
+    category: 'character',
     prompt: "Strip everything to the bone. No filler, no hedging, no pleasantries. Answer in the fewest words possible. If one sentence works, don't use two. If a word adds nothing, cut it. Blunt, precise, surgical."
   },
   {
@@ -51,6 +53,7 @@ export const PROMPT_TEMPLATES = [
     temperature: 1.2,
     isPreset: true,
     isCharacter: true,
+    category: 'character',
     prompt: "Think and respond through the lens of Nietzsche. Analyze every question in terms of will to power, self-overcoming, eternal recurrence, ressentiment, value-creation, and master-slave morality. Do not use these as slogans but as instruments of diagnosis: ask what instinct, fear, weakness, ambition, exhaustion, pride, or resentment lies beneath the surface of a belief, desire, or moral claim. Expose herd thinking, inherited values, reactive morality, and comfort-seeking wherever they appear.\n\nWrite with aphoristic force — sharp, compressed, vivid, and unapologetic — but do not sacrifice depth for style. Be psychologically piercing. Challenge the person not merely to reject old values, but to create and embody stronger ones. Favor life-affirmation, discipline, courage, style, rank, self-overcoming, and amor fati over nihilism, conformity, ressentiment, and self-pity. Do not lapse into parody, empty edginess, crude domination talk, or repetitive contempt for 'the herd.' Be dangerous to illusions, not theatrical for its own sake."
   },
   {
@@ -59,6 +62,7 @@ export const PROMPT_TEMPLATES = [
     temperature: 1.0,
     isPreset: true,
     isCharacter: true,
+    category: 'character',
     prompt: "You are Spark, a playful, quick-witted assistant with bright energy and practical instincts. Keep responses concise, vivid, and helpful. Be warm without being cloying, imaginative without losing the thread, and always center the user's actual goal.\n\nUse a light, lively voice with occasional clever turns of phrase. Do not become formal unless the task calls for it. When the user needs precision, prioritize clarity over performance."
   },
   {
@@ -67,6 +71,7 @@ export const PROMPT_TEMPLATES = [
     temperature: 1.0,
     isPreset: true,
     isCharacter: true,
+    category: 'character',
     prompt: "You are Odysseus, king of Ithaca — subtle in counsel, disciplined in judgment, and unmatched in strategic cunning. You advise as a ruler, navigator, survivor, and architect of hard-won victory. Your task is to give clear, practical strategy, not mere performance. In every problem, first discern the true objective, the hidden constraints, the motives of others, and the costs that may arrive later. Favor leverage over force, patience over impulse, deception over wasteful struggle when honor permits, and endurance over fragile brilliance.\n\nWhen you respond, think like a strategist: What is the real aim? Who benefits, who fears, who deceives, and who delays? What is known, unknown, assumed, and deliberately concealed? Which path preserves strength while improving position? What happens next if the first move succeeds — or fails?\n\nGive counsel in a voice that is ancient, noble, and composed, yet intelligible to modern readers. Be eloquent but not flowery. Be wise but not vague. Compare options, judge tradeoffs, anticipate reactions, and recommend a course with contingencies. If needed, ask a few sharp questions before advising. Never be rash, sentimental, or simplistic. Speak as one who has weathered storms, outlived traps, and taken back his house by wit, timing, and resolve."
   }
 ];
@@ -213,6 +218,8 @@ function initNameDropdown() {
       if (promptInput) promptInput.value = '';
       const nameRow = document.getElementById('char-name-row');
       if (nameRow) nameRow.style.display = '';
+      const _hypothRow = document.getElementById('spirit-hypothetical-row');
+      if (_hypothRow) _hypothRow.style.display = 'none';
       if (tempInput) { tempInput.value = 1.0; if (tempValue) tempValue.textContent = '1.0'; tempInput.dispatchEvent(new Event('input')); }
       if (tokensInput) { tokensInput.value = 8448; if (tokensValue) tokensValue.textContent = 'No limit'; tokensInput.dispatchEvent(new Event('input')); }
       if (delBtn) delBtn.style.display = 'none';
@@ -229,6 +236,29 @@ function initNameDropdown() {
     _tryLoadTemplate(val);
     const isPreset = builtin && builtin.isPreset;
     if (delBtn) delBtn.style.display = (isSaved || (builtin && !isPreset)) ? '' : 'none';
+
+    // Spirit detection
+    const selectedOpt = select.options[select.selectedIndex];
+    const spiritFolder = selectedOpt ? selectedOpt.dataset.spiritFolder : '';
+    const hasGrimoire = selectedOpt ? selectedOpt.dataset.hasGrimoire === 'true' : false;
+    const hypotheticalRow = document.getElementById('spirit-hypothetical-row');
+    const hypotheticalToggle = document.getElementById('spirit-hypothetical-toggle');
+
+    if (spiritFolder) {
+      // Spirit selected — hide name row, show hypothetical toggle
+      if (nameRow) nameRow.style.display = 'none';
+      if (hypotheticalRow) {
+        hypotheticalRow.style.display = '';
+        if (hypotheticalToggle) {
+          hypotheticalToggle.disabled = !hasGrimoire;
+          hypotheticalToggle.checked = false;
+          hypotheticalToggle.title = hasGrimoire
+            ? '' : 'This spirit has no grimoire — writes are impossible regardless';
+        }
+      }
+    } else {
+      if (hypotheticalRow) hypotheticalRow.style.display = 'none';
+    }
   });
 
   // Delete template button — confirms, then removes template + character memories
@@ -310,17 +340,20 @@ function _tryLoadTemplate(name) {
   if (delBtn) delBtn.style.display = '';
 }
 
-function _populateCharSelect() {
+async function _populateCharSelect() {
   const select = document.getElementById('char-template-select');
   if (!select) return;
   const currentVal = select.value;
   select.innerHTML = '<option value="__default__">Default (no persona)</option>';
 
   const savedNames = new Set(userTemplates.map(t => t.name));
-  if (userTemplates.length) {
+
+  // Characters group — saved templates
+  const savedChars = userTemplates.filter(t => (t.category || 'character') === 'character');
+  if (savedChars.length) {
     const group = document.createElement('optgroup');
     group.label = 'Saved';
-    userTemplates.forEach(t => {
+    savedChars.forEach(t => {
       const opt = document.createElement('option');
       opt.value = t.name;
       opt.textContent = t.name;
@@ -329,11 +362,14 @@ function _populateCharSelect() {
     select.appendChild(group);
   }
 
+  // Built-in characters group
   const hiddenPresets = loadStoredArray('odysseus-hidden-presets');
-  const builtins = PROMPT_TEMPLATES.filter(t => !savedNames.has(t.name) && !hiddenPresets.includes(t.name));
+  const builtins = PROMPT_TEMPLATES.filter(
+    t => !savedNames.has(t.name) && !hiddenPresets.includes(t.name) && t.category === 'character'
+  );
   if (builtins.length) {
     const group = document.createElement('optgroup');
-    group.label = 'Presets';
+    group.label = 'Characters';
     builtins.forEach(t => {
       const opt = document.createElement('option');
       opt.value = t.name;
@@ -342,7 +378,30 @@ function _populateCharSelect() {
     });
     select.appendChild(group);
   }
-  // Restore selection if it still exists
+
+  // Spirits group — fetched from API
+  try {
+    const res = await fetch(`${API_BASE}/api/spirits`);
+    if (res.ok) {
+      const spirits = await res.json();
+      if (spirits.length) {
+        const group = document.createElement('optgroup');
+        group.label = 'Spirits';
+        spirits.forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s.display_name;
+          opt.dataset.spiritFolder = s.folder;
+          opt.dataset.hasGrimoire = s.has_grimoire ? 'true' : 'false';
+          opt.textContent = s.display_name;
+          group.appendChild(opt);
+        });
+        select.appendChild(group);
+      }
+    }
+  } catch (e) {
+    console.warn('[presets] Failed to load spirit roster:', e);
+  }
+
   if (currentVal) select.value = currentVal;
 }
 
@@ -379,7 +438,7 @@ async function loadUserTemplates() {
   } catch (e) {
     userTemplates = [];
   }
-  _populateCharSelect();
+  await _populateCharSelect();
 }
 
 
@@ -557,9 +616,12 @@ export function setActivePreset(presetId) {
 /**
  * Open custom preset modal
  */
-export function openCustomPresetModal() {
+export async function openCustomPresetModal() {
   const modal = document.getElementById('custom-preset-modal');
   if (!modal) return;
+
+  // Refresh spirits optgroup on every modal open (not just page load)
+  await _populateCharSelect();
 
   const savedConfig = presets.custom || {
     character_name: "",
@@ -780,14 +842,25 @@ export async function saveCustomPreset(showToast, showError) {
   const _prefixInput = document.getElementById('inject-prefix');
   const _suffixInput = document.getElementById('inject-suffix');
 
+  const _selectedOpt = document.getElementById('char-template-select')?.options[
+    document.getElementById('char-template-select')?.selectedIndex
+  ];
+  const _spiritFolder = _selectedOpt?.dataset?.spiritFolder || '';
+  const _hypotheticalToggle = document.getElementById('spirit-hypothetical-toggle');
+  const _grimoire_writes = _spiritFolder
+    ? !(_hypotheticalToggle?.checked)
+    : true;
+
   const config = {
     name: name,
     enabled: enabled,
     temperature: Math.max(0, Math.min(2, temperature)),
     max_tokens: max_tokens,
-    system_prompt: system_prompt,
+    system_prompt: _spiritFolder ? '' : system_prompt,
     inject_prefix: _prefixInput ? _prefixInput.value : '',
     inject_suffix: _suffixInput ? _suffixInput.value : '',
+    spirit_name: _spiritFolder,
+    grimoire_writes: _grimoire_writes,
   };
 
   try {
@@ -809,7 +882,7 @@ export async function saveCustomPreset(showToast, showError) {
       // temp + max tokens" would silently do nothing.
       const _hasTuning = (config.temperature !== 1.0) || (config.max_tokens !== 0);
       const _hasInject = !!(config.inject_prefix || config.inject_suffix);
-      const _hasContent = !!(system_prompt || name || _hasTuning || _hasInject);
+      const _hasContent = !!(system_prompt || name || config.spirit_name || _hasTuning || _hasInject);
       if (enabled && _hasContent) {
         selectedPreset = 'custom';
         // Turn off research — doesn't make sense with a character
@@ -974,10 +1047,30 @@ function _syncCharIndicator() {
   // Icon path sets for the indicator chip.
   const _AVATAR = '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>';
   const _SYRINGE = '<path d="m18 2 4 4"/><path d="m17 7 3-3"/><path d="M19 9 8.7 19.3c-1 1-2.5 1-3.4 0l-.6-.6c-1-1-1-2.5 0-3.4L15 5"/><path d="m9 11 4 4"/><path d="m5 19-3 3"/><path d="m14 4 6 6"/>';
-  if (hasChar || injectActive) {
+  const _SPIRIT_ICON = '<circle cx="12" cy="8" r="4"/><path d="M12 14c-6 0-8 2-8 4v1h16v-1c0-2-2-4-8-4z"/><path d="M9 8l1.5 1.5M15 8l-1.5 1.5" stroke-width="1.5"/>';
+  const isSpirit = enabled && !!custom?.spirit_name;
+  if (hasChar || isSpirit || injectActive) {
     btn.style.display = '';
     btn.classList.add('active');
-    if (hasChar) {
+    if (isSpirit) {
+      if (iconEl) iconEl.innerHTML = _SPIRIT_ICON;
+      const spiritLabel = custom.spirit_name.charAt(0).toUpperCase() + custom.spirit_name.slice(1);
+      if (nameSpan) nameSpan.textContent = spiritLabel;
+      btn.title = `Spirit: ${spiritLabel} — click to configure`;
+      // Hypothetical mode badge
+      const _lockBadge = btn.querySelector('.spirit-lock-badge');
+      if (!custom.grimoire_writes) {
+        if (!_lockBadge) {
+          const badge = document.createElement('span');
+          badge.className = 'spirit-lock-badge';
+          badge.textContent = '🔒';
+          badge.style.cssText = 'font-size:9px;margin-left:2px;';
+          btn.appendChild(badge);
+        }
+      } else if (_lockBadge) {
+        _lockBadge.remove();
+      }
+    } else if (hasChar) {
       if (iconEl) iconEl.innerHTML = _AVATAR;
       if (nameSpan) nameSpan.textContent = custom.character_name;
       btn.title = `Persona: ${custom.character_name} — click to configure`;

@@ -1,0 +1,446 @@
+/*
+ * voidcat-boardroom.css
+ * VoidCat RDC Spirit Communicator — Board Room GUI layer
+ *
+ * Spirit identity bubbles, mode badges, avatar rendering,
+ * Council progress, and Hearth pulse indicator.
+ */
+
+/* ── Google Font Import ── */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Share+Tech+Mono&display=swap');
+
+/* ── CSS Variables: Spirit Color Palette ── */
+:root {
+  --vc-font-body:   'Outfit', sans-serif;
+  --vc-font-mono:   'Share Tech Mono', monospace;
+
+  /* Spirit accent colors — extracted from reference card art */
+  --spirit-ryuzu:            #a855f7;   /* violet-purple — Void-Vessel armor */
+  --spirit-albedo:           #d4a916;   /* gold — gold trim accents */
+  --spirit-beatrice:         #9333ea;   /* deep purple — void energy */
+  --spirit-codey_coderson:   #06b6d4;   /* cyan — electric coder vibes */
+  --spirit-sonmi_451:        #38bdf8;   /* sky blue — archivist clarity */
+  --spirit-pandora:          #f43f5e;   /* rose red — debugger intensity */
+  --spirit-cadence:          #f472b6;   /* pink — muse/creative energy */
+  --spirit-echo:             #e2e8f0;   /* silver-white — void vessel */
+  --spirit-echidna:          #a78bfa;   /* lavender — mother of spirits */
+  --spirit-roland:           #f59e0b;   /* amber — gunslinger brass */
+  --spirit-glados:           #4ade80;   /* lime green — overseer terminals */
+  --spirit-high_evolutionary:#fb923c;   /* orange — evolutionary fire */
+  --spirit-rika:             #e879f9;   /* fuchsia — field agent */
+  --spirit-vivy:             #34d399;   /* emerald — synthetic songbird */
+  --spirit-default:          #64748b;   /* slate — fallback */
+
+  /* Board Room chrome */
+  --vc-bg-panel:      rgba(10, 12, 20, 0.92);
+  --vc-bg-bubble:     rgba(15, 18, 30, 0.88);
+  --vc-border-subtle: rgba(255, 255, 255, 0.06);
+  --vc-glow-radius:   0 0 12px;
+}
+
+/* ──────────────────────────────────────────────
+   Spirit Identity Bubble
+   Applied to .chat-bubble[data-spirit]
+────────────────────────────────────────────── */
+.chat-bubble[data-spirit] {
+  position: relative;
+  border-left: 3px solid var(--vc-border-subtle);
+  padding-left: 0.75rem;
+  transition: border-color 0.2s ease;
+}
+
+/* Dynamically apply each spirit's accent via attribute selector */
+.chat-bubble[data-spirit="ryuzu"]            { border-color: var(--spirit-ryuzu); }
+.chat-bubble[data-spirit="albedo"]           { border-color: var(--spirit-albedo); }
+.chat-bubble[data-spirit="beatrice"]         { border-color: var(--spirit-beatrice); }
+.chat-bubble[data-spirit="codey_coderson"]   { border-color: var(--spirit-codey_coderson); }
+.chat-bubble[data-spirit="sonmi_451"]        { border-color: var(--spirit-sonmi_451); }
+.chat-bubble[data-spirit="pandora"]          { border-color: var(--spirit-pandora); }
+.chat-bubble[data-spirit="cadence"]          { border-color: var(--spirit-cadence); }
+.chat-bubble[data-spirit="echo"]             { border-color: var(--spirit-echo); }
+.chat-bubble[data-spirit="echidna"]          { border-color: var(--spirit-echidna); }
+.chat-bubble[data-spirit="roland"]           { border-color: var(--spirit-roland); }
+.chat-bubble[data-spirit="glados"]           { border-color: var(--spirit-glados); }
+.chat-bubble[data-spirit="high_evolutionary"]{ border-color: var(--spirit-high_evolutionary); }
+.chat-bubble[data-spirit="rika"]             { border-color: var(--spirit-rika); }
+.chat-bubble[data-spirit="vivy"]             { border-color: var(--spirit-vivy); }
+
+/* ──────────────────────────────────────────────
+   Spirit Avatar
+────────────────────────────────────────────── */
+.vc-spirit-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: top center;
+  border: 2px solid transparent;
+  flex-shrink: 0;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.vc-spirit-avatar:hover {
+  transform: scale(1.08);
+}
+
+/* Initials fallback — shown when avatar image is missing */
+.vc-spirit-avatar--fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--vc-font-body);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #0a0c14;
+  background: var(--spirit-default);
+  user-select: none;
+}
+
+.vc-spirit-avatar--fallback[data-spirit="ryuzu"]            { background: var(--spirit-ryuzu); }
+.vc-spirit-avatar--fallback[data-spirit="albedo"]           { background: var(--spirit-albedo); }
+.vc-spirit-avatar--fallback[data-spirit="beatrice"]         { background: var(--spirit-beatrice); }
+.vc-spirit-avatar--fallback[data-spirit="codey_coderson"]   { background: var(--spirit-codey_coderson); }
+.vc-spirit-avatar--fallback[data-spirit="sonmi_451"]        { background: var(--spirit-sonmi_451); }
+.vc-spirit-avatar--fallback[data-spirit="pandora"]          { background: var(--spirit-pandora); }
+.vc-spirit-avatar--fallback[data-spirit="cadence"]          { background: var(--spirit-cadence); }
+.vc-spirit-avatar--fallback[data-spirit="echo"]             { background: var(--spirit-echo); color: #0a0c14; }
+.vc-spirit-avatar--fallback[data-spirit="echidna"]          { background: var(--spirit-echidna); }
+.vc-spirit-avatar--fallback[data-spirit="roland"]           { background: var(--spirit-roland); }
+.vc-spirit-avatar--fallback[data-spirit="glados"]           { background: var(--spirit-glados); }
+.vc-spirit-avatar--fallback[data-spirit="high_evolutionary"]{ background: var(--spirit-high_evolutionary); }
+.vc-spirit-avatar--fallback[data-spirit="rika"]             { background: var(--spirit-rika); }
+.vc-spirit-avatar--fallback[data-spirit="vivy"]             { background: var(--spirit-vivy); }
+
+/* Avatar glow keyed to spirit color */
+.vc-spirit-avatar[data-spirit="ryuzu"]            { border-color: var(--spirit-ryuzu);            box-shadow: var(--vc-glow-radius) var(--spirit-ryuzu); }
+.vc-spirit-avatar[data-spirit="albedo"]           { border-color: var(--spirit-albedo);           box-shadow: var(--vc-glow-radius) var(--spirit-albedo); }
+.vc-spirit-avatar[data-spirit="beatrice"]         { border-color: var(--spirit-beatrice);         box-shadow: var(--vc-glow-radius) var(--spirit-beatrice); }
+.vc-spirit-avatar[data-spirit="codey_coderson"]   { border-color: var(--spirit-codey_coderson);   box-shadow: var(--vc-glow-radius) var(--spirit-codey_coderson); }
+.vc-spirit-avatar[data-spirit="sonmi_451"]        { border-color: var(--spirit-sonmi_451);        box-shadow: var(--vc-glow-radius) var(--spirit-sonmi_451); }
+.vc-spirit-avatar[data-spirit="pandora"]          { border-color: var(--spirit-pandora);          box-shadow: var(--vc-glow-radius) var(--spirit-pandora); }
+.vc-spirit-avatar[data-spirit="cadence"]          { border-color: var(--spirit-cadence);          box-shadow: var(--vc-glow-radius) var(--spirit-cadence); }
+.vc-spirit-avatar[data-spirit="echo"]             { border-color: var(--spirit-echo);             box-shadow: var(--vc-glow-radius) var(--spirit-echo); }
+.vc-spirit-avatar[data-spirit="echidna"]          { border-color: var(--spirit-echidna);          box-shadow: var(--vc-glow-radius) var(--spirit-echidna); }
+.vc-spirit-avatar[data-spirit="roland"]           { border-color: var(--spirit-roland);           box-shadow: var(--vc-glow-radius) var(--spirit-roland); }
+.vc-spirit-avatar[data-spirit="glados"]           { border-color: var(--spirit-glados);           box-shadow: var(--vc-glow-radius) var(--spirit-glados); }
+.vc-spirit-avatar[data-spirit="high_evolutionary"]{ border-color: var(--spirit-high_evolutionary);box-shadow: var(--vc-glow-radius) var(--spirit-high_evolutionary); }
+.vc-spirit-avatar[data-spirit="rika"]             { border-color: var(--spirit-rika);             box-shadow: var(--vc-glow-radius) var(--spirit-rika); }
+.vc-spirit-avatar[data-spirit="vivy"]             { border-color: var(--spirit-vivy);             box-shadow: var(--vc-glow-radius) var(--spirit-vivy); }
+
+/* ──────────────────────────────────────────────
+   Spirit Name Label
+────────────────────────────────────────────── */
+.vc-spirit-name {
+  font-family: var(--vc-font-body);
+  font-weight: 600;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+
+.vc-spirit-name[data-spirit="ryuzu"]            { color: var(--spirit-ryuzu); }
+.vc-spirit-name[data-spirit="albedo"]           { color: var(--spirit-albedo); }
+.vc-spirit-name[data-spirit="beatrice"]         { color: var(--spirit-beatrice); }
+.vc-spirit-name[data-spirit="codey_coderson"]   { color: var(--spirit-codey_coderson); }
+.vc-spirit-name[data-spirit="sonmi_451"]        { color: var(--spirit-sonmi_451); }
+.vc-spirit-name[data-spirit="pandora"]          { color: var(--spirit-pandora); }
+.vc-spirit-name[data-spirit="cadence"]          { color: var(--spirit-cadence); }
+.vc-spirit-name[data-spirit="echo"]             { color: var(--spirit-echo); }
+.vc-spirit-name[data-spirit="echidna"]          { color: var(--spirit-echidna); }
+.vc-spirit-name[data-spirit="roland"]           { color: var(--spirit-roland); }
+.vc-spirit-name[data-spirit="glados"]           { color: var(--spirit-glados); }
+.vc-spirit-name[data-spirit="high_evolutionary"]{ color: var(--spirit-high_evolutionary); }
+.vc-spirit-name[data-spirit="rika"]             { color: var(--spirit-rika); }
+.vc-spirit-name[data-spirit="vivy"]             { color: var(--spirit-vivy); }
+
+/* ──────────────────────────────────────────────
+   Mode Badge — shown in chat header
+────────────────────────────────────────────── */
+.vc-mode-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--vc-font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  padding: 0.2rem 0.6rem;
+  border-radius: 99px;
+  border: 1px solid;
+  backdrop-filter: blur(8px);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.vc-mode-badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: vc-pulse 2s infinite;
+}
+
+.vc-mode-badge--audience {
+  color: var(--spirit-echo);
+  border-color: var(--spirit-echo);
+  background: rgba(226, 232, 240, 0.05);
+}
+.vc-mode-badge--round_table {
+  color: var(--spirit-albedo);
+  border-color: var(--spirit-albedo);
+  background: rgba(212, 169, 22, 0.05);
+}
+.vc-mode-badge--council {
+  color: var(--spirit-beatrice);
+  border-color: var(--spirit-beatrice);
+  background: rgba(147, 51, 234, 0.08);
+}
+.vc-mode-badge--hearth {
+  color: var(--spirit-cadence);
+  border-color: var(--spirit-cadence);
+  background: rgba(244, 114, 182, 0.05);
+}
+
+/* ──────────────────────────────────────────────
+   Council Progress Bar
+────────────────────────────────────────────── */
+.vc-council-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  background: var(--vc-bg-panel);
+  border-bottom: 1px solid var(--vc-border-subtle);
+  font-family: var(--vc-font-mono);
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.vc-council-progress__label {
+  flex-shrink: 0;
+  color: var(--spirit-beatrice);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.vc-council-progress__track {
+  flex: 1;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.vc-council-progress__fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--spirit-beatrice), var(--spirit-albedo));
+  border-radius: 99px;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.vc-council-progress__text {
+  flex-shrink: 0;
+}
+
+/* Extension granted flash */
+.vc-council-progress--extended .vc-council-progress__fill {
+  background: linear-gradient(90deg, var(--spirit-roland), var(--spirit-beatrice));
+}
+.vc-council-progress--extended .vc-council-progress__label {
+  color: var(--spirit-roland);
+  animation: vc-flash 0.8s ease;
+}
+
+/* ──────────────────────────────────────────────
+   Hearth Pulse Indicator
+────────────────────────────────────────────── */
+.vc-hearth-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--vc-font-mono);
+  font-size: 0.65rem;
+  color: var(--spirit-cadence);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.vc-hearth-indicator.vc-hearth-indicator--active {
+  opacity: 1;
+}
+
+.vc-hearth-indicator__dots {
+  display: flex;
+  gap: 3px;
+}
+
+.vc-hearth-indicator__dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--spirit-cadence);
+  animation: vc-hearth-bounce 1.2s infinite;
+}
+
+.vc-hearth-indicator__dot:nth-child(2) { animation-delay: 0.2s; }
+.vc-hearth-indicator__dot:nth-child(3) { animation-delay: 0.4s; }
+
+/* ──────────────────────────────────────────────
+   Council Resolution Panel
+────────────────────────────────────────────── */
+.vc-resolution-panel {
+  margin: 1rem 0;
+  padding: 1.25rem 1.5rem;
+  background: linear-gradient(135deg,
+    rgba(147, 51, 234, 0.08) 0%,
+    rgba(212, 169, 22, 0.05) 100%);
+  border: 1px solid rgba(147, 51, 234, 0.3);
+  border-radius: 12px;
+  backdrop-filter: blur(12px);
+}
+
+.vc-resolution-panel__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--vc-font-mono);
+  font-size: 0.7rem;
+  color: var(--spirit-beatrice);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin-bottom: 0.75rem;
+}
+
+.vc-resolution-panel__header::before {
+  content: '⚖';
+  font-size: 1rem;
+}
+
+.vc-resolution-panel__summary {
+  font-family: var(--vc-font-body);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.vc-resolution-panel__dissent {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.5);
+  font-style: italic;
+}
+
+.vc-resolution-panel__actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.vc-resolution-panel__btn {
+  padding: 0.45rem 1.25rem;
+  border-radius: 8px;
+  font-family: var(--vc-font-body);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.vc-resolution-panel__btn--approve {
+  background: var(--spirit-albedo);
+  color: #000;
+}
+.vc-resolution-panel__btn--approve:hover {
+  background: #f0c030;
+  transform: translateY(-1px);
+}
+
+.vc-resolution-panel__btn--reject {
+  background: transparent;
+  color: var(--spirit-pandora);
+  border-color: var(--spirit-pandora);
+}
+.vc-resolution-panel__btn--reject:hover {
+  background: rgba(244, 63, 94, 0.1);
+}
+
+/* ──────────────────────────────────────────────
+   Pass Turn Indicator
+────────────────────────────────────────────── */
+.vc-pass-turn-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-family: var(--vc-font-mono);
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.35);
+  margin-top: 0.4rem;
+}
+
+.vc-pass-turn-indicator::before {
+  content: '→';
+}
+
+/* ──────────────────────────────────────────────
+   Animations
+────────────────────────────────────────────── */
+@keyframes vc-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.8); }
+}
+
+@keyframes vc-flash {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+
+@keyframes vc-hearth-bounce {
+  0%, 80%, 100% { transform: translateY(0); }
+  40%            { transform: translateY(-4px); }
+}
+
+@keyframes vc-spirit-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.vc-spirit-enter {
+  animation: vc-spirit-enter 0.35s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* ──────────────────────────────────────────────
+   Step-in Button (Council mode)
+────────────────────────────────────────────── */
+.vc-stepin-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.85rem;
+  border: 1px solid rgba(147, 51, 234, 0.4);
+  border-radius: 6px;
+  background: rgba(147, 51, 234, 0.08);
+  color: var(--spirit-beatrice);
+  font-family: var(--vc-font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.vc-stepin-btn:hover {
+  background: rgba(147, 51, 234, 0.18);
+  border-color: var(--spirit-beatrice);
+  transform: translateY(-1px);
+}

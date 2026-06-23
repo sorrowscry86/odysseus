@@ -1,0 +1,46 @@
+{
+  "name": "canvas",
+  "description": "Create an Obsidian canvas file to visualize concepts and connections.",
+  "inputSchema": {
+    "properties": {
+      "nodes": {
+        "items": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "edges": {
+        "items": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "title": {
+        "type": "string"
+      },
+      "folder": {
+        "type": "string"
+      },
+      "project": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      }
+    },
+    "required": [
+      "nodes",
+      "edges",
+      "title",
+      "folder"
+    ],
+    "type": "object"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "name": "complete",
+  "description": "\nComplete a dispatched session. Logs the outcome and updates the Spirit's grimoire.\n\nGATED: Will reject if verify() has not been called successfully first.\nThis ensures the Verification Protocol is always enforced.\n\nThe learnings you provide will be appended directly to the Spirit's grimoire.md.\nThis is how institutional memory grows. Be specific and truthful.\n\nArgs:\n    session_id: The session ID returned by dispatch()\n    outcome: Summary of what was accomplished\n    learnings: Verified insights to record in the Spirit's grimoire.\n               Example: [\"Port 8000 conflicts with CMC default\",\n                         \"Always check netstat before reassigning ports\"]\n\nReturns:\n    JSON confirming completion, grimoire update status, and whether a\n    Project Chronicle entry is recommended.\n",
+  "inputSchema": {
+    "properties": {
+      "session_id": {
+        "title": "Session Id",
+        "type": "string"
+      },
+      "outcome": {
+        "title": "Outcome",
+        "type": "string"
+      },
+      "learnings": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Learnings",
+        "type": "array"
+      }
+    },
+    "required": [
+      "session_id",
+      "outcome",
+      "learnings"
+    ],
+    "title": "completeArguments",
+    "type": "object"
+  }
+}

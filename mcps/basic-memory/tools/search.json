@@ -1,0 +1,15 @@
+{
+  "name": "search",
+  "description": "Search for content across the knowledge base",
+  "inputSchema": {
+    "properties": {
+      "query": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "query"
+    ],
+    "type": "object"
+  }
+}

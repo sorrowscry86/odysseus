@@ -6,6 +6,8 @@ services:
     volumes:
       - ${APP_DATA_DIR:-./data}:/app/data:z
       - ${APP_LOGS_DIR:-./logs}:/app/logs:z
+      # VoidCat Pantheon — override PANTHEON_DIR to match your installation
+      - ${PANTHEON_DIR:-../../../00_The_Pantheon}:/app/pantheon:z
       # Cookbook remote-server SSH identity. Odysseus can generate a key here;
       # add the shown public key to each remote server's authorized_keys.
       - ${APP_DATA_DIR:-./data}/ssh:/app/.ssh:z
@@ -118,12 +120,12 @@ services:
         fi
         exec /usr/local/searxng/entrypoint.sh
     ports:
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:${SEARXNG_PORT:-8282}:8080"
     volumes:
       - searxng-data:/etc/searxng
       - ./config/searxng/settings.yml:/tmp/searxng-settings.yml.template:ro,z
     environment:
-      - SEARXNG_BASE_URL=http://localhost:8080/
+      - SEARXNG_BASE_URL=http://localhost:${SEARXNG_PORT:-8282}/
       - SEARXNG_SECRET=${SEARXNG_SECRET:-}
     # The official searxng image runs as the non-root `searxng` user, but its
     # entrypoint still needs to chown /etc/searxng on first boot, drop privs via

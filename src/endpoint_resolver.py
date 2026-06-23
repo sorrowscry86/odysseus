@@ -86,6 +86,9 @@ def resolve_endpoint_runtime(ep, owner: Optional[str] = None) -> Tuple[str, Opti
         creds = resolve_runtime_credentials(auth_id, owner=owner)
         base = normalize_base(creds.get("base_url") or base)
         api_key = creds.get("api_key")
+    if not api_key and _detect_provider(base) == "openrouter":
+        from src.constants import OPENROUTER_API_KEY
+        api_key = OPENROUTER_API_KEY
     return base, api_key
 
 

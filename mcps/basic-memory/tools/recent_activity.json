@@ -1,0 +1,42 @@
+{
+  "name": "recent_activity",
+  "description": "Get recent activity for a project or across all projects.\n\n    Timeframe supports natural language formats like:\n    - \"2 days ago\"\n    - \"last week\"\n    - \"yesterday\"\n    - \"today\"\n    - \"3 weeks ago\"\n    Or standard formats like \"7d\"\n    ",
+  "inputSchema": {
+    "properties": {
+      "type": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        ],
+        "default": ""
+      },
+      "depth": {
+        "default": 1,
+        "type": "integer"
+      },
+      "timeframe": {
+        "default": "7d",
+        "type": "string"
+      },
+      "project": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      }
+    },
+    "type": "object"
+  }
+}

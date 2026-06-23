@@ -1,0 +1,77 @@
+{
+  "name": "search_notes",
+  "description": "Search across all content in the knowledge base with advanced syntax support.",
+  "inputSchema": {
+    "properties": {
+      "query": {
+        "type": "string"
+      },
+      "project": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "page": {
+        "default": 1,
+        "type": "integer"
+      },
+      "page_size": {
+        "default": 10,
+        "type": "integer"
+      },
+      "search_type": {
+        "default": "text",
+        "type": "string"
+      },
+      "types": {
+        "anyOf": [
+          {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "entity_types": {
+        "anyOf": [
+          {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "after_date": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      }
+    },
+    "required": [
+      "query"
+    ],
+    "type": "object"
+  }
+}

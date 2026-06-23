@@ -198,6 +198,28 @@ class ChatProcessor:
                 "role": "system",
                 "content": preset_system_prompt
             })
+
+        # VoidCat Native SDS Injection
+        if character_name:
+            try:
+                from src.spirit_engine import get_spirit_context
+                spirit_ctx = get_spirit_context(character_name)
+                if spirit_ctx:
+                    preface.append({
+                        "role": "system",
+                        "content": spirit_ctx
+                    })
+            except Exception as e:
+                logger.error(f"Failed to load spirit context for {character_name}: {e}")
+        if not agent_mode:
+            try:
+                from src.user_time import current_datetime_prompt
+                preface.append({
+                    "role": "system",
+                    "content": current_datetime_prompt(),
+                })
+            except Exception:
+                logger.debug("Failed to add current date/time context", exc_info=True)
         preface.append({
             "role": "system",
             "content": UNTRUSTED_CONTEXT_POLICY,

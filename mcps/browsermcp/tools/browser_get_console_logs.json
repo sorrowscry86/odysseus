@@ -1,0 +1,10 @@
+{
+  "name": "browser_get_console_logs",
+  "description": "Get the console logs from the browser",
+  "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false,
+    "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+}

@@ -1,7 +1,7 @@
 {
-  "name": "Odysseus",
-  "short_name": "Odysseus",
-  "description": "Self-hosted AI chat with memory, documents, and tools",
+  "name": "VoidCat Communicator",
+  "short_name": "VoidCat",
+  "description": "VoidCat RDC — self-hosted AI workspace with multi-spirit Board Room",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

@@ -1410,3 +1410,10 @@ def function_call_to_tool_block(name: str, arguments: str) -> Optional[ToolBlock
         content = json.dumps(args)
 
     return ToolBlock(tool_type, content)
+
+try:
+    from src.voidcat_tools import VOIDCAT_TOOL_SCHEMAS
+    FUNCTION_TOOL_SCHEMAS.extend(VOIDCAT_TOOL_SCHEMAS)
+except ImportError:
+    pass
+

@@ -202,6 +202,18 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
       try { requestAnimationFrame(() => _wireArrowUpRecall(document.getElementById('message'))); } catch (_) {}
       setTimeout(() => _wireArrowUpRecall(document.getElementById('message')), 250);
     }
+
+    // Pre-fill prompt from ?prompt= URL param (set by the VoidCat Launcher Board Room tab)
+    const _launchPrompt = new URLSearchParams(window.location.search).get('prompt');
+    if (_launchPrompt) {
+      const _ta = document.getElementById('message');
+      if (_ta) {
+        _ta.value = _launchPrompt;
+        _ta.dispatchEvent(new Event('input'));
+        _ta.focus();
+      }
+      window.history.replaceState({}, '', window.location.pathname);
+    }
   }
 
   // addMessage, createMsgFooter, displayMetrics, hideWelcomeScreen, showWelcomeScreen
@@ -970,12 +982,69 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
         try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ''; }
         catch { return ''; }
       })();
-      const res = await fetch(`${API_BASE}/api/chat_stream`, {
-        method: 'POST',
-        body: fd,
-        headers: { 'X-Tz-Offset': String(_tzOffsetMin), 'X-Tz-Name': _tzName },
-        signal: abortCtrl.signal
-      });
+
+      let res;
+      let isBoardRoom = false;
+      let boardroomMode = null;
+
+      // Only hit the Board Room dispatcher when the message could plausibly be one.
+      // Avoids a round trip on every plain chat message.
+      const _mightBeBoardRoom = msg.includes('@') || /lounge|hearth|shoot the breeze|convene all|@all/i.test(msg);
+
+      try {
+        if (_mightBeBoardRoom) {
+        const dispatchRes = await fetch(`${API_BASE}/api/voidcat/dispatch`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: msg })
+        });
+        if (dispatchRes.ok) {
+          const decision = await dispatchRes.json();
+          const hasExplicitTags = decision.explicit_tags && decision.explicit_tags.length > 0;
+          const isExplicitHearth = decision.mode === 'hearth' && (/lounge|hearth|shoot the breeze|convene all|@all/i.test(msg));
+          const isExplicitCouncil = decision.mode === 'council';
+
+          if (hasExplicitTags || isExplicitHearth || isExplicitCouncil) {
+            isBoardRoom = true;
+            boardroomMode = decision.mode;
+
+            // Show which spirits are queued so the user doesn't stare at a generic spinner
+            if (spinner && spinner.element && typeof spinner.updateMessage === 'function') {
+              const _queuedNames = (decision.spirit_names || decision.spirits || []).join(' + ');
+              if (_queuedNames) spinner.updateMessage(`Queuing: ${_queuedNames}…`);
+            }
+
+            const payload = {
+              prompt: msg,
+              spirits: decision.spirits,
+              chair: decision.chair,
+              max_rounds: decision.mode === 'council' ? 10 : null,
+              endpoint_url: sessionModule.getCurrentEndpointUrl ? sessionModule.getCurrentEndpointUrl() : null,
+              model: modelName,
+              session_id: streamSessionId
+            };
+
+            res = await fetch(`${API_BASE}/api/voidcat/${decision.mode}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+              signal: abortCtrl.signal
+            });
+          }
+        }
+        } // end _mightBeBoardRoom
+      } catch (err) {
+        console.warn('Board Room dispatch failed, falling back to standard chat:', err);
+      }
+
+      if (!isBoardRoom) {
+        res = await fetch(`${API_BASE}/api/chat_stream`, {
+          method: 'POST',
+          body: fd,
+          headers: { 'X-Tz-Offset': String(_tzOffsetMin), 'X-Tz-Name': _tzName },
+          signal: abortCtrl.signal
+        });
+      }
       
       if (!res.ok) {
         clearResponseTimeout();
@@ -1026,6 +1095,7 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
       let metrics = null;
       let isThinking = false;
       let thinkingStartTime = null;
+      let _lastEventType = null;
       // Streaming TTS: synthesize sentence-by-sentence during streaming
       const streamingTTS = !!(window.aiTTSManager && window.aiTTSManager.autoPlay && window.aiTTSManager.available);
       if (streamingTTS) window.aiTTSManager.streamingStart();
@@ -1285,6 +1355,7 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
           // Log SSE event types (e.g. "event: error") for debugging
           if (line.startsWith('event: ')) {
             const evtType = line.slice(7).trim();
+            _lastEventType = evtType;
             if (evtType === 'error') _nextIsError = true;
             continue;
           }
@@ -1393,6 +1464,133 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
                 if (spinner && spinner.element) spinner.destroy();
                 typewriterInto(roundHolder.querySelector('.body'), errMsg);
                 break;
+              }
+
+              if (isBoardRoom) {
+                if (_lastEventType === 'spirit_thinking') {
+                  const _spName = json.display_name || json.spirit || 'Spirit';
+                  // Stop the probe timer so it can't overwrite our named spinner message
+                  clearProcessingProbe();
+                  if (spinner && spinner.element && typeof spinner.updateMessage === 'function') {
+                    // First spirit: update the existing initial spinner
+                    spinner.updateMessage(`${_spName} is thinking…`);
+                  } else {
+                    // Between spirits: create a new placeholder bubble so the next
+                    // 'turn' event has a spinner to replace (avoids a double-bubble)
+                    const _nextHolder = document.createElement('div');
+                    _nextHolder.className = 'msg msg-ai streaming';
+                    const _ts = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                    _nextHolder.innerHTML = `<div class="role">${uiModule.esc(_spName)} <span class="role-timestamp">${_ts}</span></div><div class="body"></div>`;
+                    const _nextBody = _nextHolder.querySelector('.body');
+                    const _nextSpinner = spinnerModule.create('', 'right', 'wave');
+                    _nextBody.appendChild(_nextSpinner.createElement());
+                    _nextSpinner.start();
+                    _nextSpinner.updateMessage(`${_spName} is thinking…`);
+                    _nextHolder.dataset.boardroomPlaceholder = 'true';
+                    box.appendChild(_nextHolder);
+                    holder = _nextHolder;
+                    spinner = _nextSpinner;
+                    currentHolder = _nextHolder;
+                    currentSpinner = _nextSpinner;
+                  }
+                  uiModule.scrollHistory();
+                  continue;
+                }
+                if (_lastEventType === 'turn') {
+                  if (typeof _removeThinkingSpinner === 'function') _removeThinkingSpinner();
+                  _cancelThinkingTimer();
+
+                  const turnSpirit = json.spirit;
+                  const turnResponse = json.response;
+                  const turnMode = json.mode || boardroomMode;
+                  const turnPassedTo = json.passed_to;
+
+                  if (window.VoidCatBoardroom) {
+                    if (turnMode) window.VoidCatBoardroom.setModeBadge(turnMode);
+                    if (turnMode === 'hearth' && !json.is_final) {
+                      window.VoidCatBoardroom.showHearthPulse();
+                    } else {
+                      window.VoidCatBoardroom.hideHearthPulse();
+                    }
+                    if (turnMode === 'council') {
+                      window.VoidCatBoardroom.updateCouncilProgress(json.round_num || 1, 10, !!json.extension_reason);
+                    }
+                  }
+
+                  if (turnResponse && turnResponse.trim()) {
+                    // Clean up the current holder's spinner before rendering:
+                    // - placeholder holders (created by spirit_thinking): remove them entirely
+                    // - original spinner holder: hide it (cleaned up on done)
+                    // Then always render via chatRenderer.addMessage() for correct markdown rendering.
+                    const initialBody = holder.querySelector('.body');
+                    const initialSpinner = initialBody ? initialBody.querySelector('.spinner-wave, .spinner, .ai-spinner') : null;
+                    if (initialSpinner) {
+                      if (spinner) { spinner.destroy(); spinner = null; }
+                      if (holder.dataset.boardroomPlaceholder === 'true') {
+                        holder.remove();
+                      } else {
+                        holder.style.display = 'none';
+                      }
+                    }
+
+                    const spiritMetadata = {
+                      spirit: turnSpirit,
+                      character_name: json.display_name,
+                      mode: turnMode,
+                      passed_to: turnPassedTo
+                    };
+                    const bubbleEl = chatRenderer.addMessage(
+                      'assistant',
+                      turnResponse,
+                      modelName,
+                      spiritMetadata
+                    );
+
+                    if (window.VoidCatBoardroom && bubbleEl) {
+                      window.VoidCatBoardroom.decorateSpiritBubble(
+                        bubbleEl,
+                        turnSpirit,
+                        turnMode,
+                        turnPassedTo
+                      );
+                    }
+                  }
+
+                  if (window.VoidCatBoardroom && json.resolution) {
+                    window.VoidCatBoardroom.renderResolutionPanel(
+                      json.resolution,
+                      json.dissenting_views,
+                      (summary) => {
+                        fetch(`${API_BASE}/api/session/${streamSessionId}/inject_messages`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            messages: [{
+                              role: 'assistant',
+                              content: `Consensus Reached: ${summary}`,
+                              metadata: { boardroom_summary: true, resolution: summary }
+                            }]
+                          })
+                        }).catch(() => {});
+                      },
+                      (summary) => {}
+                    );
+                  }
+
+                  uiModule.scrollHistory();
+                  continue;
+                } else if (_lastEventType === 'done') {
+                  if (window.VoidCatBoardroom) {
+                    window.VoidCatBoardroom.hideHearthPulse();
+                    if (json.mode !== 'council') {
+                      window.VoidCatBoardroom.clearCouncilProgress();
+                    }
+                  }
+                  // Remove the original spinner holder if it was hidden during spirit rendering
+                  box.querySelectorAll('.msg-ai[style*="display: none"]').forEach(el => el.remove());
+                  _streamSawDone = true;
+                  break;
+                }
               }
               if (json.delta || json.type === 'agent_prep' || json.type === 'tool_start' || json.type === 'tool_output' || json.type === 'tool_progress' || json.type === 'agent_step' || json.type === 'doc_stream_open' || json.type === 'doc_stream_delta' || json.type === 'research_progress') {
                 clearResponseTimeout();

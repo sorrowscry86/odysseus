@@ -1,0 +1,39 @@
+{
+  "name": "list_directory",
+  "description": "List directory contents with filtering and depth control.",
+  "inputSchema": {
+    "properties": {
+      "dir_name": {
+        "default": "/",
+        "type": "string"
+      },
+      "depth": {
+        "default": 1,
+        "type": "integer"
+      },
+      "file_name_glob": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "project": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      }
+    },
+    "type": "object"
+  }
+}

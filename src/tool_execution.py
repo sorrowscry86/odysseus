@@ -774,6 +774,15 @@ async def _execute_tool_block_impl(
             or {"error": f"{tool}: execution failed", "exit_code": 1}
         if tool in ("edit_document", "suggest_document") and "title" in (result or {}):
             desc = f"{tool}: {result.get('title', '')}"
+    elif tool == "update_grimoire":
+        try:
+            from src.voidcat_tools import execute_update_grimoire
+            args = json.loads(content)
+            output = execute_update_grimoire(args)
+            result = {"output": output, "exit_code": 0 if "Success" in output else 1}
+        except Exception as e:
+            result = {"error": str(e), "exit_code": 1}
+        desc = "update_grimoire"
     elif tool == "search_chats":
         query = content.split("\n")[0].strip()
         desc = f"search_chats: {query[:80]}"

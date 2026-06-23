@@ -284,34 +284,32 @@ function _initGroupTab() {
 }
 
 async function _getCharacterList() {
-  // Built-in characters from PROMPT_TEMPLATES
-  const chars = PROMPT_TEMPLATES.filter(t => t.isCharacter).map(t => ({
-    id: t.id, name: t.name, prompt: t.prompt,
-  }));
-  // User-created characters from presets
+  // Built-in characters from PROMPT_TEMPLATES — exclude spirits
+  const chars = PROMPT_TEMPLATES
+    .filter(t => t.isCharacter && (t.category || 'character') === 'character')
+    .map(t => ({ id: t.id, name: t.name, prompt: t.prompt }));
+
+  // All saved user templates from server — exclude spirits
   try {
-    const allPresets = getAllPresets();
-    if (allPresets && allPresets.custom && allPresets.custom.character_name) {
-      chars.push({
-        id: 'custom',
-        name: allPresets.custom.character_name,
-        prompt: allPresets.custom.system_prompt || allPresets.custom.prompt || '',
-      });
+    const res = await fetch(`${API_BASE}/api/presets/templates`, { credentials: 'same-origin' });
+    if (res.ok) {
+      const templates = await res.json();
+      templates
+        .filter(t => (t.category || 'character') === 'character')
+        .forEach(t => {
+          if (!chars.find(c => c.name === t.name)) {
+            chars.push({
+              id: t.id,
+              name: t.name,
+              prompt: t.system_prompt || '',
+            });
+          }
+        });
     }
-  } catch (e) {}
-  // Load user templates and wait for them before returning.
-  // The endpoint returns a JSON array directly (not {templates:[...]}).
-  // All user templates are personas by definition — no isCharacter filter needed.
-  try {
-    const r = await fetch(API_BASE + '/api/presets/templates', { credentials: 'same-origin' });
-    const data = await r.json();
-    const templates = Array.isArray(data) ? data : (data.templates || []);
-    templates.forEach(t => {
-      if (t.id && t.name && !chars.find(c => c.id === t.id)) {
-        chars.push({ id: t.id, name: t.name, prompt: t.system_prompt || t.prompt || '' });
-      }
-    });
-  } catch (e) {}
+  } catch (e) {
+    console.warn('[group] Failed to fetch saved templates:', e);
+  }
+
   return chars;
 }
 

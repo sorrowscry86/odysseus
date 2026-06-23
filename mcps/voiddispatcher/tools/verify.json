@@ -1,0 +1,22 @@
+{
+  "name": "verify",
+  "description": "\nSubmit verification evidence for a dispatched task. MUST be called before complete().\n\nThe Verification Protocol demands concrete, verifiable proof — not just assertions.\n'Exit code 0' alone is NOT proof of success.\n\nGood evidence examples:\n- File paths created or modified with their contents\n- HTTP status codes from endpoint tests\n- Command output showing expected results\n- PIDs or container IDs confirming running services\n- Test results with pass/fail counts\n\nArgs:\n    session_id: The session ID returned by dispatch()\n    evidence: Concrete proof of task completion (minimum 20 characters)\n\nReturns:\n    JSON with verification status (VERIFIED or REJECTED).\n",
+  "inputSchema": {
+    "properties": {
+      "session_id": {
+        "title": "Session Id",
+        "type": "string"
+      },
+      "evidence": {
+        "title": "Evidence",
+        "type": "string"
+      }
+    },
+    "required": [
+      "session_id",
+      "evidence"
+    ],
+    "title": "verifyArguments",
+    "type": "object"
+  }
+}

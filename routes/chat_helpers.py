@@ -73,6 +73,8 @@ class PresetInfo:
     max_tokens: Optional[int]
     system_prompt: Optional[str]
     character_name: Optional[str]
+    spirit_name: str = ""
+    grimoire_writes: bool = True
 
 
 @dataclass
@@ -331,7 +333,7 @@ def try_fallback_endpoint(sess, session_id: str) -> dict | None:
 
 def extract_preset(chat_handler, preset_id) -> PresetInfo:
     """Extract preset parameters via chat_handler."""
-    temperature, max_tokens, system_prompt, char_name = (
+    temperature, max_tokens, system_prompt, char_name, spirit_name, grimoire_writes = (
         chat_handler.validate_and_extract_preset(preset_id)
     )
     return PresetInfo(
@@ -339,6 +341,8 @@ def extract_preset(chat_handler, preset_id) -> PresetInfo:
         max_tokens=max_tokens,
         system_prompt=system_prompt,
         character_name=char_name,
+        spirit_name=spirit_name,
+        grimoire_writes=grimoire_writes,
     )
 
 

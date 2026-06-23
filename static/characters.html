@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Characters — VoidCat Communicator</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    body { margin: 0; }
+    .char-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 16px;
+      padding: 24px;
+    }
+    .char-card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      background: var(--panel);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .char-card-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .char-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: var(--border);
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+    .char-avatar-placeholder {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+    .char-card-name {
+      font-weight: 600;
+      font-size: 14px;
+    }
+    .char-card-temp {
+      font-size: 11px;
+      opacity: 0.5;
+    }
+    .char-card-prompt {
+      font-size: 12px;
+      opacity: 0.65;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .char-card-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: auto;
+    }
+    .char-card-actions button {
+      flex: 1;
+      padding: 5px 8px;
+      font-size: 11px;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      background: none;
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .char-card-actions button:hover { background: color-mix(in srgb, var(--fg) 8%, transparent); }
+    .char-card-actions .btn-danger { color: var(--red, #e55); }
+    .char-add-card {
+      border: 2px dashed var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--fg);
+      opacity: 0.5;
+      font-size: 13px;
+      gap: 8px;
+      min-height: 120px;
+    }
+    .char-add-card:hover { opacity: 0.8; background: color-mix(in srgb, var(--fg) 4%, transparent); }
+    .char-page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    .char-page-header h1 { font-size: 18px; font-weight: 600; margin: 0; }
+    .char-modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+      display: none; align-items: center; justify-content: center; z-index: 1000;
+    }
+    .char-modal-backdrop.open { display: flex; }
+    .char-modal {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      width: 480px;
+      max-width: 95vw;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .char-modal h2 { margin: 0; font-size: 16px; }
+    .char-modal label { font-size: 12px; opacity: 0.7; display: block; margin-bottom: 4px; }
+    .char-modal input, .char-modal textarea, .char-modal select {
+      width: 100%; box-sizing: border-box;
+      padding: 7px 9px; border: 1px solid var(--border);
+      border-radius: 6px; background: var(--bg); color: var(--fg); font-size: 13px;
+    }
+    .char-modal textarea { height: 120px; resize: vertical; font-family: inherit; }
+    .char-modal-footer { display: flex; gap: 8px; justify-content: flex-end; }
+    .char-modal-footer button {
+      padding: 7px 16px; border-radius: 6px; font-size: 13px; cursor: pointer;
+      border: 1px solid var(--border); background: none; color: var(--fg);
+    }
+    .char-modal-footer .btn-primary {
+      background: var(--accent, #6c6cf0); color: #fff; border-color: transparent;
+    }
+    #char-avatar-upload { display: none; }
+  </style>
+</head>
+<body>
+  <div class="char-page-header">
+    <h1>Characters</h1>
+    <a href="/" style="font-size:12px; opacity:0.6; text-decoration:none; color:var(--fg);">← Back to chat</a>
+  </div>
+
+  <div class="char-grid" id="char-grid">
+    <div class="char-add-card" id="char-add-btn">
+      <span style="font-size:20px;">+</span> New Character
+    </div>
+  </div>
+
+  <!-- Edit / Create modal -->
+  <div class="char-modal-backdrop" id="char-modal-backdrop">
+    <div class="char-modal">
+      <h2 id="char-modal-title">New Character</h2>
+      <input type="hidden" id="char-modal-id">
+      <div style="display:flex; gap:12px; align-items:flex-start;">
+        <div>
+          <div id="char-modal-avatar-preview" class="char-avatar-placeholder" title="Click to upload avatar">👤</div>
+          <input type="file" id="char-avatar-upload" accept=".png,.jpg,.jpeg,.webp,.gif">
+        </div>
+        <div style="flex:1;">
+          <label>Name</label>
+          <input type="text" id="char-modal-name" placeholder="Character name" maxlength="100">
+        </div>
+      </div>
+      <div>
+        <label>System Prompt</label>
+        <textarea id="char-modal-prompt" placeholder="Describe how this character thinks, speaks, and behaves..."></textarea>
+      </div>
+      <div style="display:flex; gap:12px;">
+        <div style="flex:1;">
+          <label>Temperature <span id="char-modal-temp-val">1.0</span></label>
+          <input type="range" id="char-modal-temp" min="0" max="2" step="0.1" value="1.0">
+        </div>
+        <div style="flex:1;">
+          <label>Max Tokens</label>
+          <input type="number" id="char-modal-tokens" min="0" max="65536" value="0" placeholder="0 = no limit">
+        </div>
+      </div>
+      <div class="char-modal-footer">
+        <button id="char-modal-cancel">Cancel</button>
+        <button class="btn-primary" id="char-modal-save">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/static/js/characterManager.js"></script>
+</body>
+</html>

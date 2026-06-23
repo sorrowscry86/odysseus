@@ -1,0 +1,16 @@
+{
+  "name": "query_specstory_archives",
+  "description": "Executes a full-text GraphQL search against the VoidCat development history in SpecStory.\nReturns matching session IDs and relevance snippets.",
+  "inputSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "search_query": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "search_query"
+    ],
+    "type": "object"
+  }
+}

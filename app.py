@@ -614,6 +614,14 @@ app.include_router(setup_chat_routes(
 from routes.research_routes import setup_research_routes
 app.include_router(setup_research_routes(research_handler, session_manager=session_manager))
 
+# VoidCat Board Room (Spirit Communicator)
+try:
+    from routes.voidcat_routes import setup_voidcat_routes
+    app.include_router(setup_voidcat_routes(session_manager))
+    logger.info("VoidCat Board Room routes registered.")
+except Exception as _vc_err:
+    logger.warning(f"VoidCat routes failed to load (non-fatal): {_vc_err}")
+
 # History
 from routes.history_routes import setup_history_routes
 app.include_router(setup_history_routes(session_manager))
@@ -844,6 +852,10 @@ async def serve_tasks(request: Request):
 @app.get("/library")
 async def serve_library(request: Request):
     return await serve_index(request)
+
+@app.get("/characters")
+async def serve_characters(request: Request):
+    return _serve_html_with_nonce(request, abs_join(BASE_DIR, "static/characters.html"))
 
 @app.get("/backgrounds")
 async def serve_backgrounds(request: Request):

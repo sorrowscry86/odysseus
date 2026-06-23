@@ -197,6 +197,7 @@ _TOOL_NAME_MAP = {
     "manage_bg_jobs": "manage_bg_jobs",
     "bg_jobs": "manage_bg_jobs",
     "background_jobs": "manage_bg_jobs",
+    "update_grimoire": "update_grimoire",
 }
 
 _MISFENCED_WEB_TOOL_NAMES = {

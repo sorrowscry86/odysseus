@@ -53,7 +53,8 @@ class ChatHandler:
     # ------------------------------------------------------------------
 
     def validate_and_extract_preset(self, preset_id: Optional[str]) -> tuple:
-        """Returns (temperature, max_tokens, preset_system_prompt, character_name)."""
+        """Returns (temperature, max_tokens, preset_system_prompt, character_name,
+        spirit_name, grimoire_writes)."""
         if preset_id and preset_id not in self.preset_manager.presets:
             raise HTTPException(400, f"Invalid preset_id: {preset_id}")
 
@@ -61,28 +62,42 @@ class ChatHandler:
         max_tokens = DEFAULT_MAX_TOKENS
         preset_system_prompt = None
         character_name = ""
+        spirit_name = ""
+        grimoire_writes = True
 
         if preset_id and preset_id in self.preset_manager.presets:
             preset = self.preset_manager.presets[preset_id]
             if preset.get("enabled") is False:
                 logger.info(f"Preset {preset_id} is disabled, using defaults")
-                return temperature, max_tokens, preset_system_prompt, character_name
-            if preset.get("system_prompt"):
-                preset_system_prompt = preset["system_prompt"]
-            character_name = preset.get("character_name", "")
-            if character_name:
-                name_line = f"Your name is {character_name}."
-                if preset_system_prompt:
-                    preset_system_prompt = f"{name_line} {preset_system_prompt}"
-                else:
-                    preset_system_prompt = name_line
+                return temperature, max_tokens, preset_system_prompt, character_name, spirit_name, grimoire_writes
+
+            spirit_name = preset.get("spirit_name", "") or ""
+            grimoire_writes = preset.get("grimoire_writes", True)
+
+            if spirit_name:
+                # Spirit preset: route context loading through get_spirit_context via
+                # the existing character_name injection path in chat_processor.py.
+                # Do NOT prepend "Your name is X." — the persona.md owns identity.
+                character_name = spirit_name
+            else:
+                # Character preset: existing behavior
+                if preset.get("system_prompt"):
+                    preset_system_prompt = preset["system_prompt"]
+                character_name = preset.get("character_name", "")
+                if character_name:
+                    name_line = f"Your name is {character_name}."
+                    if preset_system_prompt:
+                        preset_system_prompt = f"{name_line} {preset_system_prompt}"
+                    else:
+                        preset_system_prompt = name_line
+
             if "temperature" in preset:
                 temperature = preset["temperature"]
             if "max_tokens" in preset:
                 max_tokens = preset["max_tokens"]
 
-        logger.info(f"Preset {preset_id}: temp={temperature}, max_tokens={max_tokens}")
-        return temperature, max_tokens, preset_system_prompt, character_name
+        logger.info(f"Preset {preset_id}: temp={temperature}, max_tokens={max_tokens}, spirit={spirit_name}")
+        return temperature, max_tokens, preset_system_prompt, character_name, spirit_name, grimoire_writes
 
     def enhance_message_if_needed(self, message: str) -> str:
         """CoT enhancement disabled — modern models reason natively."""

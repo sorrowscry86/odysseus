@@ -1,0 +1,15 @@
+{
+  "name": "fetch",
+  "description": "Fetch the full contents of a search result document",
+  "inputSchema": {
+    "properties": {
+      "id": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "id"
+    ],
+    "type": "object"
+  }
+}

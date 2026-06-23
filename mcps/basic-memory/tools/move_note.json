@@ -1,0 +1,30 @@
+{
+  "name": "move_note",
+  "description": "Move a note to a new location, updating database and maintaining links.",
+  "inputSchema": {
+    "properties": {
+      "identifier": {
+        "type": "string"
+      },
+      "destination_path": {
+        "type": "string"
+      },
+      "project": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      }
+    },
+    "required": [
+      "identifier",
+      "destination_path"
+    ],
+    "type": "object"
+  }
+}
