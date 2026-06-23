@@ -20,6 +20,8 @@ class UserTemplateRequest(BaseModel):
     system_prompt: str = Field("", max_length=10000)
     temperature: float = Field(1.0, ge=0.0, le=2.0)
     max_tokens: int = Field(0, ge=0, le=65536)
+    avatar_url: str = Field("", max_length=500)
+    category: str = Field("character", pattern="^(character|spirit)$")
 
 
 def setup_preset_routes(preset_manager) -> APIRouter:
