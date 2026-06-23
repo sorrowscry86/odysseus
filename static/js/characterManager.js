@@ -133,8 +133,7 @@ async function deleteTemplate(t) {
 }
 
 async function activateAndChat(t) {
-  // Clamp max_tokens to the PresetUpdateRequest limit of 8192
-  const maxTok = Math.min(t.max_tokens || 0, 8192);
+  const maxTok = t.max_tokens || 0;
   await fetch(`${API_BASE}/api/presets/custom`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
