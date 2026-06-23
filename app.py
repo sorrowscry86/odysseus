@@ -795,6 +795,10 @@ async def serve_tasks(request: Request):
 async def serve_library(request: Request):
     return await serve_index(request)
 
+@app.get("/characters")
+async def serve_characters(request: Request):
+    return _serve_html_with_nonce(request, abs_join(BASE_DIR, "static/characters.html"))
+
 @app.get("/backgrounds")
 async def serve_backgrounds(request: Request):
     """Sandbox page for prototyping background effects. No auth required."""
