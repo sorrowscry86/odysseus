@@ -1,10 +1,12 @@
 """Preset routes — /api/presets GET, /api/presets/custom POST, user templates CRUD."""
 
 import logging
+import os
 import uuid
 from typing import Dict, Any, List
 
-from fastapi import APIRouter, HTTPException, Request, Depends
+from fastapi import APIRouter, HTTPException, Request, Depends, File, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from src.request_models import PresetUpdateRequest
@@ -123,5 +125,63 @@ def setup_preset_routes(preset_manager) -> APIRouter:
         data = await request.json()
         preset_manager.save_group_presets(data.get("groups", []))
         return {"ok": True}
+
+    # ── Avatar upload / serve ──
+    _ALLOWED_AVATAR_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
+    _MAX_AVATAR_BYTES = 2 * 1024 * 1024  # 2MB
+
+    @router.post("/api/presets/templates/{template_id}/avatar")
+    async def upload_avatar(
+        template_id: str,
+        file: UploadFile = File(...),
+        _admin: None = Depends(require_admin),
+    ):
+        # Security: reject path traversal in template_id
+        if "/" in template_id or "\\" in template_id or ".." in template_id:
+            raise HTTPException(400, "Invalid template_id")
+
+        ext = os.path.splitext(file.filename or "")[1].lower()
+        if ext not in _ALLOWED_AVATAR_EXTS:
+            raise HTTPException(415, f"Unsupported format: {ext}")
+
+        data = await file.read()
+        if len(data) > _MAX_AVATAR_BYTES:
+            raise HTTPException(413, "Avatar exceeds 2MB limit")
+
+        avatars_dir = os.path.join(preset_manager.data_dir, "avatars")
+        os.makedirs(avatars_dir, exist_ok=True)
+
+        filename = f"{template_id}{ext}"
+        dest = os.path.join(avatars_dir, filename)
+
+        # Security: ensure dest stays inside avatars_dir
+        if not os.path.abspath(dest).startswith(os.path.abspath(avatars_dir)):
+            raise HTTPException(400, "Invalid template_id")
+
+        with open(dest, "wb") as f_out:
+            f_out.write(data)
+
+        avatar_url = f"/api/presets/avatars/{filename}"
+
+        # Update avatar_url on the template record
+        templates = preset_manager.get_user_templates()
+        for t in templates:
+            if t.get("id") == template_id:
+                t["avatar_url"] = avatar_url
+                preset_manager.save_user_template(t)
+                break
+
+        return {"success": True, "avatar_url": avatar_url}
+
+    @router.get("/api/presets/avatars/{filename}")
+    async def serve_avatar(filename: str):
+        # Security: reject path traversal
+        if "/" in filename or "\\" in filename or ".." in filename:
+            raise HTTPException(400, "Invalid filename")
+        avatars_dir = os.path.join(preset_manager.data_dir, "avatars")
+        path = os.path.join(avatars_dir, filename)
+        if not os.path.isfile(path):
+            raise HTTPException(404, "Avatar not found")
+        return FileResponse(path)
 
     return router
