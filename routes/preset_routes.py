@@ -140,6 +140,11 @@ def setup_preset_routes(preset_manager) -> APIRouter:
         if "/" in template_id or "\\" in template_id or ".." in template_id:
             raise HTTPException(400, "Invalid template_id")
 
+        # Verify template exists before writing to avoid orphaned files
+        templates = preset_manager.get_user_templates()
+        if not any(t.get("id") == template_id for t in templates):
+            raise HTTPException(404, "Template not found")
+
         ext = os.path.splitext(file.filename or "")[1].lower()
         if ext not in _ALLOWED_AVATAR_EXTS:
             raise HTTPException(415, f"Unsupported format: {ext}")

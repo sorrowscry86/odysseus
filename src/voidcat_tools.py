@@ -10,7 +10,7 @@ PANTHEON_ROOT = os.getenv("PANTHEON_ROOT", "/app/pantheon/01_Active_Profiles")
 
 def _assert_not_immutable(path: str) -> None:
     """Raise PermissionError if path targets persona.md — immutable by law."""
-    if os.path.basename(path) == "persona.md":
+    if os.path.basename(path).lower() == "persona.md":
         raise PermissionError(
             f"persona.md is immutable — writes are forbidden: {path}"
         )
@@ -112,7 +112,9 @@ def execute_update_grimoire(args: Dict[str, Any]) -> str:
     if not character_name or not knowledge:
         return "Error: Missing character_name or knowledge_entry."
 
-    safe_name = "".join(c for c in character_name if c.isalnum() or c in (' ', '_', '-')).strip()
+    safe_name = "".join(c for c in character_name if c.isalnum() or c in (' ', '_', '-')).strip().lower()
+    if not safe_name:
+        return "Error: Invalid character_name."
     spirit_dir = os.path.join(PANTHEON_ROOT, safe_name)
 
     if not os.path.isdir(spirit_dir):

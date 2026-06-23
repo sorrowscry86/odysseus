@@ -291,7 +291,7 @@ async function _getCharacterList() {
 
   // All saved user templates from server — exclude spirits
   try {
-    const res = await fetch(`${API_BASE}/api/presets/templates`);
+    const res = await fetch(`${API_BASE}/api/presets/templates`, { credentials: 'same-origin' });
     if (res.ok) {
       const templates = await res.json();
       templates

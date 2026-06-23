@@ -15,8 +15,10 @@ def get_spirit_context(character_name: str) -> Optional[str]:
     if not character_name:
         return None
 
-    # Mellow path normalization
-    safe_name = "".join(c for c in character_name if c.isalnum() or c in (' ', '_', '-')).strip()
+    # Mellow path normalization — lowercase for case-insensitive folder matching
+    safe_name = "".join(c for c in character_name if c.isalnum() or c in (' ', '_', '-')).strip().lower()
+    if not safe_name:
+        return None
     spirit_dir = os.path.join(PANTHEON_ROOT, safe_name)
 
     if not os.path.isdir(spirit_dir):

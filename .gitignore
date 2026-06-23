@@ -80,6 +80,9 @@ output.txt.txt
 !static/spirits/*.jpg
 !launcher/voidcat-logo.jpg
 
+# Terminal capture artifacts (local tooling output, never commit)
+terminals/
+
 # Reports and temp files
 reports/
 tasks/
