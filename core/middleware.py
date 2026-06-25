@@ -1,8 +1,11 @@
 # src/middleware.py
 # Shared middleware, decorators, and request helpers
 
+import logging
 import os
 import secrets
+
+_logger = logging.getLogger(__name__)
 
 from fastapi import HTTPException, Request
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -43,8 +46,8 @@ def require_admin(request: Request):
             return
         if getattr(request.state, "current_user", None) == INTERNAL_TOOL_USER:
             return
-    except Exception:
-        pass
+    except Exception as e:
+        _logger.warning("Admin bypass check raised unexpectedly: %s", e)
 
     auth_mgr = getattr(request.app.state, "auth_manager", None)
     if os.getenv("AUTH_ENABLED", "true").lower() == "false":

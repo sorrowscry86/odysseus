@@ -1,3 +1,14 @@
+[tool.ruff]
+line-length = 100
+select = [
+    "DTZ",   # flake8-datetimez: enforce timezone-aware datetime (Law of Time)
+    "S603",  # subprocess-without-shell-equals-true
+    "S604",  # call-with-shell-equals-true
+]
+
+[tool.black]
+line-length = 100
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"

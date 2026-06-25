@@ -186,8 +186,8 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
             u = result.get("username")
             if u:
                 result["privileges"] = auth_manager.get_privileges(u)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("get_privileges failed for '%s': %s", result.get("username"), e)
         return result
 
     @router.get("/policy")
@@ -587,8 +587,8 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
                 invalidator = getattr(request.app.state, "invalidate_token_cache", None)
                 if invalidator:
                     invalidator()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Token cache invalidation failed: %s", e)
 
         try:
             ok = auth_manager.delete_user(body.username, user)

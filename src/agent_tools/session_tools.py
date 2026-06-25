@@ -118,10 +118,10 @@ async def list_sessions(content: str, session_id: Optional[str] = None, owner: O
         def _rel(ts):
             if not ts:
                 return 'never'
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             try:
-                if ts.tzinfo is not None:
-                    now = datetime.now(timezone.utc)
+                if ts.tzinfo is None:
+                    now = now.replace(tzinfo=None)
                 diff = (now - ts).total_seconds()
             except Exception:
                 return 'unknown'

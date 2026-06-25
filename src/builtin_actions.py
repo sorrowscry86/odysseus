@@ -7,7 +7,7 @@ scheduler without needing an LLM call.
 
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Tuple
 
 from src.auth_helpers import owner_filter
@@ -316,7 +316,7 @@ async def action_ssh_command(owner: str, command: str = "", host: str = "localho
             bash = find_bash()
             if bash:
                 return await _run_subprocess([bash, "-c", command], timeout=120, label="Command")
-            return await _run_subprocess(command, shell=True, timeout=120, label="Command")
+            return await _run_subprocess(["cmd", "/c", command], timeout=120, label="Command")
         return await _run_subprocess(["bash", "-c", command], timeout=120, label="Command")
     return await _run_subprocess(
         ["ssh", "-o", "ConnectTimeout=10", host, command], timeout=120, label="Command",
@@ -331,7 +331,9 @@ async def action_run_script(owner: str, script: str = "", host: str = "", **kwar
     if target_host in ("", "localhost", "127.0.0.1", "local"):
         if IS_WINDOWS and find_bash():
             return await _run_subprocess([find_bash(), "-c", script], timeout=300, label="Script")
-        return await _run_subprocess(script, shell=True, timeout=300, label="Script")
+        if IS_WINDOWS:
+            return await _run_subprocess(["cmd", "/c", script], timeout=300, label="Script")
+        return await _run_subprocess(["sh", "-c", script], timeout=300, label="Script")
     return await _run_subprocess(["ssh", target_host, script], timeout=300, label="Script")
 
 
@@ -341,7 +343,9 @@ async def action_run_local(owner: str, script: str = "", **kwargs) -> Tuple[str,
         return "No script specified", False
     if IS_WINDOWS and find_bash():
         return await _run_subprocess([find_bash(), "-c", script], timeout=300, label="Script")
-    return await _run_subprocess(script, shell=True, timeout=300, label="Script")
+    if IS_WINDOWS:
+        return await _run_subprocess(["cmd", "/c", script], timeout=300, label="Script")
+    return await _run_subprocess(["sh", "-c", script], timeout=300, label="Script")
 
 
 async def action_tidy_research(owner: str, **kwargs) -> Tuple[str, bool]:
@@ -453,7 +457,7 @@ async def action_tidy_calendar(owner: str, **kwargs) -> Tuple[str, bool]:
                 if newest is not None:
                     STATE_FILE.write_text(json.dumps({
                         "last_created_at": newest.isoformat(),
-                        "last_run_at": datetime.utcnow().isoformat(),
+                        "last_run_at": datetime.now(timezone.utc).isoformat(),
                         "scanned": len(events),
                         "removed": len(removed),
                     }, indent=2), encoding="utf-8")
@@ -605,7 +609,7 @@ async def action_classify_events(owner: str, **kwargs) -> Tuple[str, bool]:
 
         db = SessionLocal()
         try:
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
             horizon = now + timedelta(days=30)
             events = db.query(CalendarEvent).filter(
                 CalendarEvent.dtstart >= now,
@@ -872,7 +876,7 @@ async def action_learn_sender_signatures(owner: str, **kwargs) -> Tuple[str, boo
         except Exception:
             cached = {}
 
-        cutoff_iso = (_dt.utcnow() - _td(days=30)).isoformat()
+        cutoff_iso = (_dt.now(timezone.utc).replace(tzinfo=None) - _td(days=30)).isoformat()
         eligible: list[tuple[str, list[dict]]] = []
         for addr, msgs in by_sender.items():
             if len(msgs) < 3:
@@ -978,7 +982,7 @@ async def action_learn_sender_signatures(owner: str, **kwargs) -> Tuple[str, boo
                     "INSERT OR REPLACE INTO sender_signatures "
                     "(from_address, owner, signature_text, sample_count, last_built_at, model_used, source) "
                     "VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    (addr, owner_value, cached_sig, len(bodies), _dt.utcnow().isoformat(), model, "llm"),
+                    (addr, owner_value, cached_sig, len(bodies), _dt.now(timezone.utc).replace(tzinfo=None).isoformat(), model, "llm"),
                 )
                 conn.commit()
                 conn.close()
@@ -1498,7 +1502,7 @@ async def action_check_email_urgency(owner: str, **kwargs) -> Tuple[str, bool]:
         CACHE_DIR = _P(EMAIL_URGENCY_CACHE_DIR)
         CACHE_DIR.mkdir(parents=True, exist_ok=True)
         STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
-        AGE_CUTOFF = _dt.utcnow() - _td(days=7)
+        AGE_CUTOFF = _dt.now(timezone.utc).replace(tzinfo=None) - _td(days=7)
         TRIAGE_VERSION = 3
         CATEGORY_TAGS = {
             "newsletter", "marketing", "notification", "finance", "bills",
@@ -1857,7 +1861,7 @@ async def action_check_email_urgency(owner: str, **kwargs) -> Tuple[str, bool]:
                             "VALUES (?, ?, ?, 'INBOX', ?, ?, ?, ?, ?, ?)",
                             (_msg_id, _owner_key, _uid_only, _v.get("subject", ""),
                              _v.get("from", ""), _json.dumps(_new_tags), _spam, _v.get("reason", ""),
-                             _dt2.utcnow().isoformat()),
+                             _dt2.now(timezone.utc).replace(tzinfo=None).isoformat()),
                         )
                 _conn.commit()
             finally:

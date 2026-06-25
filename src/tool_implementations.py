@@ -440,6 +440,11 @@ async def do_manage_tasks(content: str, owner: Optional[str] = None) -> Dict:
                 return {"error": "Prompt is required for llm/research tasks", "exit_code": 1}
             if task_type == "action" and not args.get("action_name"):
                 return {"error": "action_name is required for action tasks", "exit_code": 1}
+            _SHELL_ACTIONS = {"run_local", "run_script", "ssh_command"}
+            if task_type == "action" and args.get("action_name") in _SHELL_ACTIONS:
+                from src.tool_security import owner_is_admin_or_single_user
+                if not owner_is_admin_or_single_user(owner):
+                    return {"error": f"Action '{args['action_name']}' requires admin privileges", "exit_code": 1}
 
             # Compute next_run for schedule triggers
             next_run = None
@@ -496,6 +501,11 @@ async def do_manage_tasks(content: str, owner: Optional[str] = None) -> Dict:
                 task.task_type = args["task_type"]
                 changed.append("task_type")
             if args.get("action_name") is not None:
+                _SHELL_ACTIONS = {"run_local", "run_script", "ssh_command"}
+                if args["action_name"] in _SHELL_ACTIONS:
+                    from src.tool_security import owner_is_admin_or_single_user
+                    if not owner_is_admin_or_single_user(owner):
+                        return {"error": f"Action '{args['action_name']}' requires admin privileges", "exit_code": 1}
                 task.action = args["action_name"]
                 changed.append("action")
             if args.get("trigger_type") is not None:
@@ -617,10 +627,10 @@ async def do_manage_endpoints(content: str, owner: Optional[str] = None) -> Dict
             if not base_url:
                 return {"error": "base_url is required", "exit_code": 1}
             eid = str(_uuid.uuid4())[:8]
-            from datetime import datetime
+            from datetime import datetime, timezone
             ep = ModelEndpoint(id=eid, name=name or base_url, base_url=base_url,
                                api_key=api_key, is_enabled=True,
-                               created_at=datetime.utcnow(), updated_at=datetime.utcnow())
+                               created_at=datetime.now(timezone.utc).replace(tzinfo=None), updated_at=datetime.now(timezone.utc).replace(tzinfo=None))
             db.add(ep)
             db.commit()
             return {"response": f"Added endpoint '{name or base_url}' (id: {eid})", "exit_code": 0}
@@ -820,7 +830,7 @@ async def do_manage_mcp(content: str, owner: Optional[str] = None) -> Dict:
     elif action == "add":
         from core.database import SessionLocal, McpServer
         import uuid as _uuid
-        from datetime import datetime
+        from datetime import datetime, timezone
         name = args.get("name", "")
         command = args.get("command", "")
         cmd_args = args.get("args", [])
@@ -839,7 +849,7 @@ async def do_manage_mcp(content: str, owner: Optional[str] = None) -> Dict:
             srv = McpServer(id=sid, name=name, transport="stdio", command=command,
                             args=json.dumps(cmd_args) if isinstance(cmd_args, list) else cmd_args,
                             env=json.dumps(env) if isinstance(env, dict) else env,
-                            is_enabled=True, created_at=datetime.utcnow(), updated_at=datetime.utcnow())
+                            is_enabled=True, created_at=datetime.now(timezone.utc).replace(tzinfo=None), updated_at=datetime.now(timezone.utc).replace(tzinfo=None))
             db.add(srv)
             db.commit()
         finally:
@@ -963,7 +973,7 @@ async def do_manage_webhooks(content: str, owner: Optional[str] = None) -> Dict:
 
         elif action == "add":
             import uuid as _uuid
-            from datetime import datetime
+            from datetime import datetime, timezone
             from src.webhook_manager import validate_events, validate_webhook_url
             name = args.get("name", "")
             url = args.get("url", "")
@@ -978,7 +988,7 @@ async def do_manage_webhooks(content: str, owner: Optional[str] = None) -> Dict:
             wid = str(_uuid.uuid4())[:8]
             hook = Webhook(id=wid, name=name or url, url=url,
                            events=events, is_active=True,
-                           created_at=datetime.utcnow(), updated_at=datetime.utcnow())
+                           created_at=datetime.now(timezone.utc).replace(tzinfo=None), updated_at=datetime.now(timezone.utc).replace(tzinfo=None))
             db.add(hook)
             db.commit()
             return {"response": f"Added webhook '{name or url}'", "exit_code": 0}
@@ -1034,14 +1044,14 @@ async def do_manage_tokens(content: str, owner: Optional[str] = None) -> Dict:
 
         elif action == "create":
             import uuid as _uuid, secrets, bcrypt
-            from datetime import datetime
+            from datetime import datetime, timezone
             name = args.get("name", "API Token")
             raw_token = secrets.token_urlsafe(32)
             token_hash = bcrypt.hashpw(raw_token.encode(), bcrypt.gensalt()).decode()
             tid = str(_uuid.uuid4())[:8]
             t = ApiToken(id=tid, name=name, token_hash=token_hash,
                          token_prefix=raw_token[:8], is_active=True,
-                         created_at=datetime.utcnow(), updated_at=datetime.utcnow())
+                         created_at=datetime.now(timezone.utc).replace(tzinfo=None), updated_at=datetime.now(timezone.utc).replace(tzinfo=None))
             db.add(t)
             db.commit()
             return {"response": f"Created token '{name}'", "token": raw_token, "exit_code": 0}
@@ -1626,7 +1636,7 @@ async def do_manage_notes(content: str, owner: Optional[str] = None) -> Dict:
 
 async def do_manage_calendar(content: str, owner: Optional[str] = None) -> Dict:
     """Handle manage_calendar tool calls: list/create/update/delete calendar events (local SQLite)."""
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
     from core.database import SessionLocal, CalendarCal, CalendarEvent, Note
     from routes.calendar_routes import (
         _ensure_default_calendar,
@@ -1764,7 +1774,7 @@ async def do_manage_calendar(content: str, owner: Optional[str] = None) -> Dict:
                                   all_day: bool, minutes_before: int,
                                   is_utc: bool = False) -> tuple[Optional[str], Optional[str]]:
         remind_at = dtstart - timedelta(minutes=minutes_before)
-        now = datetime.utcnow() if is_utc else datetime.now()
+        now = datetime.now(timezone.utc).replace(tzinfo=None) if is_utc else datetime.now()
         if dtstart <= now:
             return None, "event already passed"
         if remind_at <= now:
@@ -1826,7 +1836,7 @@ async def do_manage_calendar(content: str, owner: Optional[str] = None) -> Dict:
                 if start_raw:
                     start_dt = _parse_dt(start_raw)
                 else:
-                    start_dt = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+                    start_dt = datetime.now(timezone.utc).replace(tzinfo=None, hour=0, minute=0, second=0, microsecond=0)
                 if end_raw:
                     end_dt = _parse_dt(end_raw)
                 else:
@@ -4275,8 +4285,8 @@ async def do_vault_unlock(content: str, owner: Optional[str] = None) -> Dict:
         except Exception:
             pass
     cfg["session"] = session
-    from datetime import datetime as _dt
-    cfg["unlocked_at"] = _dt.utcnow().isoformat()
+    from datetime import datetime as _dt, timezone
+    cfg["unlocked_at"] = _dt.now(timezone.utc).isoformat()
     p.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
     try:
         import os as _os

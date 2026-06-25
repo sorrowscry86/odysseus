@@ -373,3 +373,73 @@ def test_task_payload_exposes_crew_member_id_for_ui_category():
 
     src = open(task_routes.__file__, encoding="utf-8").read()
     assert '"crew_member_id"' in src
+
+
+# ---------------------------------------------------------------------------
+# do_manage_tasks in-process shell-action gate (CRIT-C mirror)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_do_manage_tasks_blocks_shell_actions_for_non_admin(monkeypatch):
+    """do_manage_tasks must refuse shell-executing action types for non-admins.
+
+    The HTTP route (task_routes.py) already has this gate; this test covers the
+    in-process LLM tool path (tool_implementations.py) which is reached when the
+    agent calls manage_tasks directly — it previously had no equivalent check.
+    """
+    import json
+    from src.tool_implementations import do_manage_tasks
+
+    monkeypatch.setattr(
+        "src.tool_security.owner_is_admin_or_single_user",
+        lambda owner: False,
+    )
+
+    for shell_action in ("ssh_command", "run_script", "run_local"):
+        payload = json.dumps({
+            "action": "create",
+            "task_type": "action",
+            "action_name": shell_action,
+            "trigger_type": "schedule",
+            "schedule": "daily",
+        })
+        result = await do_manage_tasks(payload, owner="unprivileged_user")
+        assert result.get("exit_code") == 1, f"Expected block for {shell_action}"
+        assert "admin" in result.get("error", "").lower(), (
+            f"Expected admin-privilege error for {shell_action}, got: {result}"
+        )
+
+
+@pytest.mark.asyncio
+async def test_do_manage_tasks_blocks_shell_action_edit_for_non_admin(monkeypatch):
+    """Editing a task to change its action to a shell type must also be blocked."""
+    import json
+    import sys
+    from src.tool_implementations import do_manage_tasks
+
+    monkeypatch.setattr(
+        "src.tool_security.owner_is_admin_or_single_user",
+        lambda owner: False,  # noqa: ARG005
+    )
+
+    fake_task = MagicMock()
+    fake_task.owner = "unprivileged_user"
+    fake_task.action = "tidy_sessions"
+
+    fake_db = MagicMock()
+    fake_db.query.return_value.filter.return_value.first.return_value = fake_task
+
+    # SessionLocal is imported inline inside do_manage_tasks via
+    # `from core.database import SessionLocal`. Patch it on the module that
+    # sys.modules["core.database"] currently points to so the inline import
+    # picks up our fake_db instance.
+    monkeypatch.setattr(sys.modules["core.database"], "SessionLocal", MagicMock(return_value=fake_db))
+
+    payload = json.dumps({
+        "action": "edit",
+        "task_id": "some-task-id",
+        "action_name": "run_local",
+    })
+    result = await do_manage_tasks(payload, owner="unprivileged_user")
+    assert result.get("exit_code") == 1
+    assert "admin" in result.get("error", "").lower()

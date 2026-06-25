@@ -82,8 +82,8 @@ def setup_admin_wipe_routes(session_manager):
                 db.commit()
                 try:
                     session_manager.sessions.clear()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning("In-memory session clear failed (DB already wiped): %s", e)
                 return {"status": "deleted", "kind": kind, "count": count}
 
             if kind == "memory":

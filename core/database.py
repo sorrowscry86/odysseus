@@ -705,6 +705,16 @@ class Memory(Base):
         Index('ix_memories_session', 'session_id', 'timestamp'),  # Composite for session-based queries
     )
 
+# ---------------------------------------------------------------------------
+# Schema migration helpers (raw sqlite3 — intentional)
+# Each function below uses raw sqlite3.connect() rather than SQLAlchemy.
+# These run ONCE at startup to add columns/tables that didn't exist in older
+# schema versions. PRAGMA operations (table_info, foreign_key_list) and
+# idempotent ALTER TABLE are simpler with raw sqlite3 than with SQLAlchemy.
+# The per-function conn.close() in finally blocks is intentionally silent
+# (nothing useful to do if close fails in a one-shot migration).
+# ---------------------------------------------------------------------------
+
 def _migrate_add_last_message_at_column():
     """Add last_message_at to sessions + backfill from the latest message
     timestamp per session (fallback to last_accessed / created_at when a
