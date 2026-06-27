@@ -132,16 +132,8 @@ function Test-OdysseusTcpPort {
         [int]$TimeoutMs = 1500
     )
     try {
-        $client = [System.Net.Sockets.TcpClient]::new()
-        $iar = $client.BeginConnect($HostName, $Port, $null, $null)
-        $ok = $iar.AsyncWaitHandle.WaitOne($TimeoutMs, $false)
-        if ($ok -and $client.Connected) {
-            $client.EndConnect($iar)
-            $client.Close()
-            return $true
-        }
-        $client.Close()
-        return $false
+        $listeners = [System.Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners()
+        return ($null -ne ($listeners | Where-Object { $_.Port -eq $Port }))
     } catch {
         return $false
     }

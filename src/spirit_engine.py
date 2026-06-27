@@ -4,8 +4,20 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-# The Pantheon is mounted into the container at /app/pantheon
-PANTHEON_ROOT = os.getenv("PANTHEON_ROOT", "/app/pantheon/01_Active_Profiles")
+# Container path (Docker). For local dev, fall back to a path derived from __file__
+# so we don't need to hardcode a user home directory in .env.
+_CONTAINER_DEFAULT = "/app/pantheon/01_Active_Profiles"
+if os.path.isdir(_CONTAINER_DEFAULT):
+    _resolved_default = _CONTAINER_DEFAULT
+else:
+    _src = os.path.dirname(os.path.abspath(__file__))          # .../src/
+    _repo = os.path.dirname(_src)                               # .../voidcat-communicator/
+    _local = os.path.normpath(
+        os.path.join(_repo, "../../..", "00_The_Pantheon", "01_Active_Profiles")
+    )
+    _resolved_default = _local if os.path.isdir(_local) else _CONTAINER_DEFAULT
+
+PANTHEON_ROOT = os.getenv("PANTHEON_ROOT", _resolved_default)
 
 def get_spirit_context(character_name: str) -> Optional[str]:
     """
@@ -15,11 +27,20 @@ def get_spirit_context(character_name: str) -> Optional[str]:
     if not character_name:
         return None
 
-    # Mellow path normalization — lowercase for case-insensitive folder matching
     safe_name = "".join(c for c in character_name if c.isalnum() or c in (' ', '_', '-')).strip().lower()
     if not safe_name:
         return None
+
+    # Case-insensitive folder lookup (Pantheon dirs are mostly lowercase but not always).
     spirit_dir = os.path.join(PANTHEON_ROOT, safe_name)
+    if not os.path.isdir(spirit_dir):
+        try:
+            for entry in os.listdir(PANTHEON_ROOT):
+                if entry.lower() == safe_name and os.path.isdir(os.path.join(PANTHEON_ROOT, entry)):
+                    spirit_dir = os.path.join(PANTHEON_ROOT, entry)
+                    break
+        except OSError:
+            pass
 
     if not os.path.isdir(spirit_dir):
         logger.debug(f"Spirit directory not found for {safe_name} at {spirit_dir}")

@@ -18,12 +18,15 @@ $RepoRoot = Split-Path $LauncherRoot -Parent
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
+[System.Windows.Forms.Application]::EnableVisualStyles()
+[System.Windows.Forms.Application]::SetCompatibleTextRenderingDefault($false)
+
 $script:Context = New-OdysseusLauncherContext -RepoRoot $RepoRoot
 Initialize-OdysseusLauncherLog -LogPath $script:Context.LogPath
 $script:Plugins = Import-OdysseusPlugins -PluginDir $script:Context.PluginDir
 $script:StatusRows = @{}
 $script:Busy = $false
-$script:SpiritCards = [System.Collections.ArrayList]::new()
+$script:PreflightBlocked = $true
 
 function Write-UiLog {
     param(
@@ -60,6 +63,36 @@ function Get-StatusGlyph {
     }
 }
 
+function Update-StatusPanelFast {
+    $listening = Test-OdysseusServerListening -Context $script:Context
+    $owned     = $script:Context.ServerProcess -and -not $script:Context.ServerProcess.HasExited
+
+    $script:BtnLaunch.Enabled  = (-not $script:Busy) -and (-not $script:PreflightBlocked) -and (-not $listening)
+    $script:BtnStop.Enabled    = (-not $script:Busy) -and ($owned -or $listening)
+    $script:BtnOpen.Enabled    = (-not $script:Busy) -and $listening
+    $script:BtnSetup.Enabled   = -not $script:Busy
+    if ($script:BtnOpenApp) { $script:BtnOpenApp.Enabled = $listening }
+    if ($script:BtnKill) { $script:BtnKill.Enabled = $listening }
+
+    if ($script:StatusRows.ContainsKey('server')) {
+        $row = $script:StatusRows['server']
+        if ($listening) {
+            $status = 'ok'
+            $msg    = if ($owned) { 'Running (launcher-managed)' } else { 'Running (external)' }
+        } elseif ($owned) {
+            $status = 'pending'
+            $msg    = 'Starting...'
+        } else {
+            $status = 'pending'
+            $msg    = 'Stopped'
+        }
+        $glyph = Get-StatusGlyph $status
+        $row.Label.Text       = ("{0}  Odysseus server" -f $glyph)
+        $row.Detail.Text      = $msg
+        $row.Detail.ForeColor = Get-StatusColor $status
+    }
+}
+
 function Update-StatusPanel {
     $preflight = Test-OdysseusPlugins -Context $script:Context -Plugins $script:Plugins -Phase 'preflight'
     $runtime   = Test-OdysseusPlugins -Context $script:Context -Plugins $script:Plugins -Phase 'runtime'
@@ -75,6 +108,7 @@ function Update-StatusPanel {
     }
 
     $blocked   = Test-OdysseusLaunchBlocked -Results $preflight
+    $script:PreflightBlocked = $blocked
     $listening = Test-OdysseusServerListening -Context $script:Context
     $owned     = $script:Context.ServerProcess -and -not $script:Context.ServerProcess.HasExited
 
@@ -82,28 +116,11 @@ function Update-StatusPanel {
     $script:BtnStop.Enabled    = (-not $script:Busy) -and ($owned -or $listening)
     $script:BtnOpen.Enabled    = (-not $script:Busy) -and $listening
     $script:BtnSetup.Enabled   = -not $script:Busy
-    $script:BtnConvene.Enabled = $listening
+    if ($script:BtnOpenApp) { $script:BtnOpenApp.Enabled = $listening }
+    if ($script:BtnKill) { $script:BtnKill.Enabled = $listening }
 }
 
 function Show-LauncherForm {
-    # Spirit roster for Board Room tab
-    $SPIRITS = @(
-        [pscustomobject]@{ Key='ryuzu';             AtTag='@Ryuzu';            Name='Ryuzu'          },
-        [pscustomobject]@{ Key='albedo';            AtTag='@Albedo';           Name='Albedo'         },
-        [pscustomobject]@{ Key='beatrice';          AtTag='@Beatrice';         Name='Beatrice'       },
-        [pscustomobject]@{ Key='codey_coderson';    AtTag='@Codey';            Name='Codey'          },
-        [pscustomobject]@{ Key='sonmi_451';         AtTag='@Sonmi';            Name='Sonmi-451'      },
-        [pscustomobject]@{ Key='pandora';           AtTag='@Pandora';          Name='Pandora'        },
-        [pscustomobject]@{ Key='cadence';           AtTag='@Cadence';          Name='Cadence'        },
-        [pscustomobject]@{ Key='echo';              AtTag='@Echo';             Name='Echo'           },
-        [pscustomobject]@{ Key='echidna';           AtTag='@Echidna';          Name='Echidna'        },
-        [pscustomobject]@{ Key='roland';            AtTag='@Roland';           Name='Roland'         },
-        [pscustomobject]@{ Key='glados';            AtTag='@GLaDOS';           Name='GLaDOS'         },
-        [pscustomobject]@{ Key='high_evolutionary'; AtTag='@highevolutionary'; Name='High Evo'       },
-        [pscustomobject]@{ Key='rika';              AtTag='@Rika';             Name='Rika'           },
-        [pscustomobject]@{ Key='vivy';              AtTag='@Vivy';             Name='Vivy'           }
-    )
-
     # - Form -
     $form = New-Object System.Windows.Forms.Form
     $form.Text = 'VoidCat Communicator'
@@ -217,6 +234,14 @@ function Show-LauncherForm {
     $btnLogs.Size = New-Object System.Drawing.Size(100, 32)
     $serverTab.Controls.Add($btnLogs)
 
+    $script:BtnKill = New-Object System.Windows.Forms.Button
+    $script:BtnKill.Text = 'Kill'
+    $script:BtnKill.Location = New-Object System.Drawing.Point(548, $btnY)
+    $script:BtnKill.Size = New-Object System.Drawing.Size(100, 32)
+    $script:BtnKill.ForeColor = [System.Drawing.Color]::FromArgb(240, 80, 80)
+    $script:BtnKill.Enabled = $false
+    $serverTab.Controls.Add($script:BtnKill)
+
     $logLabel = New-Object System.Windows.Forms.Label
     $logLabel.Text = 'Activity'
     $logLabel.Location = New-Object System.Drawing.Point(8, 280)
@@ -251,7 +276,7 @@ function Show-LauncherForm {
     $serverTab.Controls.Add($mark)
 
     # =
-    # BOARD ROOM TAB - spirit selector + mode + convene
+    # BOARD ROOM TAB - opens the web app (Board Room UI is now in the browser)
     # =
     $boardTab = New-Object System.Windows.Forms.TabPage
     $boardTab.Text = '  Board Room  '
@@ -259,156 +284,28 @@ function Show-LauncherForm {
     $boardTab.ForeColor = [System.Drawing.Color]::FromArgb(230, 230, 235)
     $tabs.Controls.Add($boardTab)
 
-    $spiritSectionLbl = New-Object System.Windows.Forms.Label
-    $spiritSectionLbl.Text = 'Assemble your spirits'
-    $spiritSectionLbl.Location = New-Object System.Drawing.Point(8, 8)
-    $spiritSectionLbl.AutoSize = $true
-    $spiritSectionLbl.ForeColor = [System.Drawing.Color]::FromArgb(160, 160, 168)
-    $spiritSectionLbl.Font = New-Object System.Drawing.Font('Segoe UI', 9)
-    $boardTab.Controls.Add($spiritSectionLbl)
+    $brHintLbl = New-Object System.Windows.Forms.Label
+    $brHintLbl.Text = 'Board Room is now built into the web app.'
+    $brHintLbl.Location = New-Object System.Drawing.Point(8, 40)
+    $brHintLbl.AutoSize = $true
+    $brHintLbl.ForeColor = [System.Drawing.Color]::FromArgb(200, 200, 210)
+    $brHintLbl.Font = New-Object System.Drawing.Font('Segoe UI', 11)
+    $boardTab.Controls.Add($brHintLbl)
 
-    # Spirit grid - 5 cards per row, 128×72 each
-    $spiritFlow = New-Object System.Windows.Forms.FlowLayoutPanel
-    $spiritFlow.Location = New-Object System.Drawing.Point(8, 28)
-    $spiritFlow.Size = New-Object System.Drawing.Size(666, 284)
-    $spiritFlow.BackColor = [System.Drawing.Color]::FromArgb(24, 24, 28)
-    $spiritFlow.WrapContents = $true
-    $spiritFlow.AutoScroll = $false
-    $boardTab.Controls.Add($spiritFlow)
+    $brHintLbl2 = New-Object System.Windows.Forms.Label
+    $brHintLbl2.Text = 'Start the server, open the app, then click the Board Room button ( ⬡ ) in the chat toolbar.'
+    $brHintLbl2.Location = New-Object System.Drawing.Point(8, 70)
+    $brHintLbl2.AutoSize = $true
+    $brHintLbl2.ForeColor = [System.Drawing.Color]::FromArgb(140, 140, 150)
+    $brHintLbl2.Font = New-Object System.Drawing.Font('Segoe UI', 9)
+    $boardTab.Controls.Add($brHintLbl2)
 
-    $script:SpiritCards.Clear()
-
-    foreach ($spirit in $SPIRITS) {
-        $local:sp = $spirit
-
-        $card = New-Object System.Windows.Forms.Panel
-        $card.Size = New-Object System.Drawing.Size(126, 70)
-        $card.BackColor = [System.Drawing.Color]::FromArgb(28, 28, 34)
-        $card.Margin = New-Object System.Windows.Forms.Padding(3, 3, 3, 3)
-        $card.Tag = $false  # selected state (bool)
-        $card.Cursor = [System.Windows.Forms.Cursors]::Hand
-
-        $pb = New-Object System.Windows.Forms.PictureBox
-        $pb.Size = New-Object System.Drawing.Size(44, 44)
-        $pb.Location = New-Object System.Drawing.Point(41, 4)
-        $pb.SizeMode = 'Zoom'
-        $pb.BackColor = [System.Drawing.Color]::FromArgb(28, 28, 34)
-        $pb.Cursor = [System.Windows.Forms.Cursors]::Hand
-        $portraitPath = Join-Path $RepoRoot "static\spirits\$($local:sp.Key).jpg"
-        if (Test-Path $portraitPath) {
-            try { $pb.Image = [System.Drawing.Image]::FromFile($portraitPath) } catch {}
-        }
-        $card.Controls.Add($pb)
-
-        $nameLbl = New-Object System.Windows.Forms.Label
-        $nameLbl.Text = $local:sp.Name
-        $nameLbl.Location = New-Object System.Drawing.Point(0, 50)
-        $nameLbl.Size = New-Object System.Drawing.Size(126, 16)
-        $nameLbl.TextAlign = 'MiddleCenter'
-        $nameLbl.Font = New-Object System.Drawing.Font('Segoe UI', 8)
-        $nameLbl.ForeColor = [System.Drawing.Color]::FromArgb(190, 190, 200)
-        $nameLbl.BackColor = [System.Drawing.Color]::Transparent
-        $nameLbl.Cursor = [System.Windows.Forms.Cursors]::Hand
-        $card.Controls.Add($nameLbl)
-
-        # Store direct object references in Tag so click handlers don't capture loop vars
-        $pb.Tag      = @{ Card = $card; Label = $nameLbl }
-        $nameLbl.Tag = @{ Card = $card; Label = $nameLbl }
-
-        $childClickHandler = {
-            param($s, $e)
-            $refs = $s.Tag
-            $c = $refs.Card
-            $l = $refs.Label
-            $sel = -not [bool]$c.Tag
-            $c.Tag = $sel
-            $c.BackColor = if ($sel) { [System.Drawing.Color]::FromArgb(40, 56, 96) } else { [System.Drawing.Color]::FromArgb(28, 28, 34) }
-            $l.ForeColor = if ($sel) { [System.Drawing.Color]::FromArgb(160, 200, 255) } else { [System.Drawing.Color]::FromArgb(190, 190, 200) }
-        }
-
-        $cardClickHandler = {
-            param($s, $e)
-            $sel = -not [bool]$s.Tag
-            $s.Tag = $sel
-            $s.BackColor = if ($sel) { [System.Drawing.Color]::FromArgb(40, 56, 96) } else { [System.Drawing.Color]::FromArgb(28, 28, 34) }
-            $lbl = $s.Controls | Where-Object { $_ -is [System.Windows.Forms.Label] } | Select-Object -First 1
-            if ($lbl) { $lbl.ForeColor = if ($sel) { [System.Drawing.Color]::FromArgb(160, 200, 255) } else { [System.Drawing.Color]::FromArgb(190, 190, 200) } }
-        }
-
-        $card.Add_Click($cardClickHandler)
-        $pb.Add_Click($childClickHandler)
-        $nameLbl.Add_Click($childClickHandler)
-
-        $spiritFlow.Controls.Add($card)
-        [void]$script:SpiritCards.Add(@{ Panel = $card; AtTag = $local:sp.AtTag })
-    }
-
-    # Mode selector
-    $modeBox = New-Object System.Windows.Forms.GroupBox
-    $modeBox.Text = 'Mode'
-    $modeBox.Location = New-Object System.Drawing.Point(8, 320)
-    $modeBox.Size = New-Object System.Drawing.Size(666, 50)
-    $modeBox.ForeColor = [System.Drawing.Color]::FromArgb(160, 160, 168)
-    $boardTab.Controls.Add($modeBox)
-
-    $script:RbAuto = New-Object System.Windows.Forms.RadioButton
-    $script:RbAuto.Text = 'Auto'
-    $script:RbAuto.Location = New-Object System.Drawing.Point(10, 20)
-    $script:RbAuto.AutoSize = $true
-    $script:RbAuto.Checked = $true
-    $modeBox.Controls.Add($script:RbAuto)
-
-    $script:RbRoundTable = New-Object System.Windows.Forms.RadioButton
-    $script:RbRoundTable.Text = 'Round Table'
-    $script:RbRoundTable.Location = New-Object System.Drawing.Point(80, 20)
-    $script:RbRoundTable.AutoSize = $true
-    $modeBox.Controls.Add($script:RbRoundTable)
-
-    $script:RbCouncil = New-Object System.Windows.Forms.RadioButton
-    $script:RbCouncil.Text = 'Council'
-    $script:RbCouncil.Location = New-Object System.Drawing.Point(198, 20)
-    $script:RbCouncil.AutoSize = $true
-    $modeBox.Controls.Add($script:RbCouncil)
-
-    $script:RbHearth = New-Object System.Windows.Forms.RadioButton
-    $script:RbHearth.Text = 'Hearth'
-    $script:RbHearth.Location = New-Object System.Drawing.Point(280, 20)
-    $script:RbHearth.AutoSize = $true
-    $modeBox.Controls.Add($script:RbHearth)
-
-    # Prompt input
-    $promptSectionLbl = New-Object System.Windows.Forms.Label
-    $promptSectionLbl.Text = 'Opening Message (optional)'
-    $promptSectionLbl.Location = New-Object System.Drawing.Point(8, 382)
-    $promptSectionLbl.AutoSize = $true
-    $promptSectionLbl.ForeColor = [System.Drawing.Color]::FromArgb(160, 160, 168)
-    $promptSectionLbl.Font = New-Object System.Drawing.Font('Segoe UI', 9)
-    $boardTab.Controls.Add($promptSectionLbl)
-
-    $script:TxtPrompt = New-Object System.Windows.Forms.TextBox
-    $script:TxtPrompt.Location = New-Object System.Drawing.Point(8, 402)
-    $script:TxtPrompt.Size = New-Object System.Drawing.Size(540, 28)
-    $script:TxtPrompt.BackColor = [System.Drawing.Color]::FromArgb(32, 32, 38)
-    $script:TxtPrompt.ForeColor = [System.Drawing.Color]::FromArgb(230, 230, 235)
-    $script:TxtPrompt.BorderStyle = 'FixedSingle'
-    $boardTab.Controls.Add($script:TxtPrompt)
-
-    # Convene button
-    $script:BtnConvene = New-Object System.Windows.Forms.Button
-    $script:BtnConvene.Text = 'Convene'
-    $script:BtnConvene.Location = New-Object System.Drawing.Point(558, 400)
-    $script:BtnConvene.Size = New-Object System.Drawing.Size(110, 32)
-    $script:BtnConvene.Font = New-Object System.Drawing.Font('Segoe UI', 10, [System.Drawing.FontStyle]::Bold)
-    $script:BtnConvene.Enabled = $false
-    $boardTab.Controls.Add($script:BtnConvene)
-
-    $boardHintLbl = New-Object System.Windows.Forms.Label
-    $boardHintLbl.Text = 'Select spirits, pick a mode, then Convene. Server must be running (use Server tab).'
-    $boardHintLbl.Location = New-Object System.Drawing.Point(8, 442)
-    $boardHintLbl.Size = New-Object System.Drawing.Size(660, 18)
-    $boardHintLbl.ForeColor = [System.Drawing.Color]::FromArgb(100, 100, 110)
-    $boardHintLbl.Font = New-Object System.Drawing.Font('Segoe UI', 8)
-    $boardTab.Controls.Add($boardHintLbl)
+    $script:BtnOpenApp = New-Object System.Windows.Forms.Button
+    $script:BtnOpenApp.Text = 'Open App'
+    $script:BtnOpenApp.Location = New-Object System.Drawing.Point(8, 110)
+    $script:BtnOpenApp.Size = New-Object System.Drawing.Size(120, 32)
+    $script:BtnOpenApp.Enabled = $false
+    $boardTab.Controls.Add($script:BtnOpenApp)
 
     # - Server tab button handlers -
     $script:BtnSetup.Add_Click({
@@ -419,6 +316,7 @@ function Show-LauncherForm {
             $ok = Invoke-OdysseusFullSetup -Context $script:Context -OnStep {
                 param($msg)
                 Write-UiLog $msg
+                [System.Windows.Forms.Application]::DoEvents()
             }
             if (-not $ok) { Write-UiLog 'Setup failed - see messages above.' 'ERROR' }
         } finally {
@@ -437,7 +335,7 @@ function Show-LauncherForm {
 
         if (Test-OdysseusServerListening -Context $script:Context) {
             Write-UiLog 'Server already running - opening browser.'
-            Open-OdysseusBrowser -Url $script:Context.BaseUrl -OnLog { param($m, $l='INFO') Write-UiLog $m $l }
+            Open-OdysseusBrowser -Url $script:Context.BaseUrl -NewWindow -OnLog { param($m, $l='INFO') Write-UiLog $m $l }
             Update-StatusPanel
             return
         }
@@ -448,7 +346,7 @@ function Show-LauncherForm {
             Start-OdysseusServer -Context $script:Context -OnLog { param($m, $l='INFO') Write-UiLog $m $l }
             $ready = Wait-OdysseusServerReady -Context $script:Context -OnLog { param($m, $l='INFO') Write-UiLog $m $l }
             if ($ready) {
-                Open-OdysseusBrowser -Url $script:Context.BaseUrl -OnLog { param($m, $l='INFO') Write-UiLog $m $l }
+                Open-OdysseusBrowser -Url $script:Context.BaseUrl -NewWindow -OnLog { param($m, $l='INFO') Write-UiLog $m $l }
             } else {
                 Write-UiLog ("Server failed to start. See {0}" -f $script:Context.ServerLog) 'ERROR'
             }
@@ -467,7 +365,7 @@ function Show-LauncherForm {
     })
 
     $script:BtnOpen.Add_Click({
-        Open-OdysseusBrowser -Url $script:Context.BaseUrl -OnLog { param($m, $l='INFO') Write-UiLog $m $l }
+        Open-OdysseusBrowser -Url $script:Context.BaseUrl -NewWindow -OnLog { param($m, $l='INFO') Write-UiLog $m $l }
     })
 
     $btnLogs.Add_Click({
@@ -475,57 +373,37 @@ function Show-LauncherForm {
         if ($paths) { Start-Process 'explorer.exe' -ArgumentList ('/select,' + $paths[0]) }
     })
 
-    # - Board Room convene handler -
-    $script:BtnConvene.Add_Click({
-        if (-not (Test-OdysseusServerListening -Context $script:Context)) {
-            [System.Windows.Forms.MessageBox]::Show(
-                'The server is not running. Start it from the Server tab first.',
-                'VoidCat Communicator',
-                [System.Windows.Forms.MessageBoxButtons]::OK,
-                [System.Windows.Forms.MessageBoxIcon]::Warning
-            ) | Out-Null
-            return
-        }
-
-        $userText = $script:TxtPrompt.Text.Trim()
-
-        if ($script:RbHearth.Checked) {
-            $parts = @('lounge') + @($userText) | Where-Object { $_ }
-            $promptStr = $parts -join ' '
-        } else {
-            $selected = @($script:SpiritCards | Where-Object { [bool]$_.Panel.Tag } | ForEach-Object { $_.AtTag })
-            if ($selected.Count -eq 0) {
-                [System.Windows.Forms.MessageBox]::Show(
-                    'Select at least one spirit to convene.',
-                    'VoidCat Communicator',
-                    [System.Windows.Forms.MessageBoxButtons]::OK,
-                    [System.Windows.Forms.MessageBoxIcon]::Information
-                ) | Out-Null
-                return
+    $script:BtnKill.Add_Click({
+        if ($script:Busy) { return }
+        Stop-OdysseusServer -Context $script:Context -OnLog { param($m, $l='INFO') Write-UiLog $m $l }
+        try {
+            $conn = Get-NetTCPConnection -LocalPort $script:Context.Port -State Listen -ErrorAction SilentlyContinue
+            if ($conn) {
+                foreach ($c in $conn) {
+                    if ($c.OwningProcess -and $c.OwningProcess -gt 0) {
+                        Stop-Process -Id $c.OwningProcess -Force -ErrorAction SilentlyContinue
+                        Write-UiLog ("Killed pid {0} on port {1}." -f $c.OwningProcess, $script:Context.Port)
+                    }
+                }
+            } else {
+                Write-UiLog 'No process found on server port.'
             }
-            if ($script:RbCouncil.Checked -and $selected.Count -lt 2) {
-                [System.Windows.Forms.MessageBox]::Show(
-                    'Council mode requires at least two spirits.',
-                    'VoidCat Communicator',
-                    [System.Windows.Forms.MessageBoxButtons]::OK,
-                    [System.Windows.Forms.MessageBoxIcon]::Information
-                ) | Out-Null
-                return
-            }
-            $keyword = if ($script:RbCouncil.Checked) { 'convene' } else { '' }
-            $parts = @($selected) + @($keyword) + @($userText) | Where-Object { $_ }
-            $promptStr = $parts -join ' '
+        } catch {
+            Write-UiLog ("Kill failed: {0}" -f $_.Exception.Message) 'ERROR'
         }
+        Update-StatusPanelFast
+    })
 
-        $encoded = [System.Uri]::EscapeDataString($promptStr)
-        $url = "$($script:Context.BaseUrl)/?prompt=$encoded"
-        Open-OdysseusBrowser -Url $url -OnLog { param($m, $l='INFO') }
+    $script:BtnOpenApp.Add_Click({
+        Open-OdysseusBrowser -Url $script:Context.BaseUrl -OnLog { param($m, $l='INFO') Write-UiLog $m $l } -NewWindow
     })
 
     # - Timer (polls server state every 2s) -
     $timer = New-Object System.Windows.Forms.Timer
-    $timer.Interval = 2000
-    $timer.Add_Tick({ Update-StatusPanel })
+    $timer.Interval = 3000
+    $timer.Add_Tick({
+        try { Update-StatusPanelFast } catch { Write-UiLog ("Timer error: {0}" -f $_.Exception.Message) 'ERROR' }
+    })
     $timer.Start()
 
     $form.Add_FormClosing({
@@ -546,8 +424,9 @@ function Show-LauncherForm {
         }
     })
 
+    $form.Add_Shown({ try { Update-StatusPanelFast } catch { Write-UiLog ("Shown error: {0}" -f $_.Exception.Message) 'ERROR' } })
+
     Write-UiLog 'Launcher ready.'
-    Update-StatusPanel
     [void]$form.ShowDialog()
 }
 

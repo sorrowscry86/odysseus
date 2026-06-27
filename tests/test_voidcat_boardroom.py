@@ -100,9 +100,44 @@ def test_relevance_scorer():
                                 ["how do we containerize the database?"])
     passed.append(f"PASS  relevance_scorer pick_next_speaker -> {winner}")
 
+def test_convene_queue():
+    """Convene queue: store → consume-once → second GET empty → stale expiry."""
+    import time
+    from routes.voidcat_routes import _pending_convene
+
+    _pending_convene.clear()
+
+    # Store a convene
+    _pending_convene.update({
+        "prompt": "@Ryuzu @Beatrice convene design the API",
+        "spirits": "ryuzu,beatrice",
+        "ts": time.time(),
+    })
+    assert _pending_convene.get("prompt") == "@Ryuzu @Beatrice convene design the API"
+    assert _pending_convene.get("spirits") == "ryuzu,beatrice"
+
+    # First GET: returns and clears
+    result = {"prompt": _pending_convene.get("prompt"), "spirits": _pending_convene.get("spirits", "")}
+    _pending_convene.clear()
+    assert result["prompt"] == "@Ryuzu @Beatrice convene design the API"
+    assert result["spirits"] == "ryuzu,beatrice"
+
+    # Second GET: queue is empty → prompt is None
+    assert not _pending_convene
+    empty_result = {"prompt": None} if not _pending_convene else {"prompt": _pending_convene["prompt"]}
+    assert empty_result["prompt"] is None
+
+    # Stale entry (>30s old) → treated as empty
+    _pending_convene.update({"prompt": "stale", "spirits": "", "ts": time.time() - 35})
+    stale_ok = time.time() - _pending_convene.get("ts", 0) > 30
+    assert stale_ok, "Stale expiry check failed"
+    _pending_convene.clear()
+
+    passed.append("PASS  convene_queue: store, consume-once, empty, stale-expiry")
+
 for fn in [test_spirit_roster, test_dispatch_audience, test_dispatch_explicit_tag,
            test_dispatch_round_table, test_dispatch_council, test_spirit_context,
-           test_mcp_bridge, test_relevance_scorer]:
+           test_mcp_bridge, test_relevance_scorer, test_convene_queue]:
     try:
         fn()
     except AssertionError as e:

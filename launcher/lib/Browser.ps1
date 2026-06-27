@@ -16,13 +16,19 @@ function Find-OdysseusBrowser {
 function Open-OdysseusBrowser {
     param(
         [string]$Url,
-        [scriptblock]$OnLog
+        [scriptblock]$OnLog,
+        [switch]$NewWindow
     )
 
     $browser = Find-OdysseusBrowser
     if ($browser) {
-        $profile = Join-Path $env:TEMP 'OdysseusBrowser'
-        Start-Process -FilePath $browser -ArgumentList "--app=$Url", '--new-window', "--user-data-dir=$profile"
+        $browserProfile = Join-Path $env:TEMP 'OdysseusBrowser'
+        if ($NewWindow) {
+            $argList = @("--app=$Url", "--user-data-dir=$browserProfile", '--new-window')
+        } else {
+            $argList = @("--app=$Url", "--user-data-dir=$browserProfile", '--no-restore-last-session')
+        }
+        Start-Process -FilePath $browser -ArgumentList $argList
         & $OnLog ("Opened app window via {0}" -f (Split-Path $browser -Leaf))
         return $true
     }

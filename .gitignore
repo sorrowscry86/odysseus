@@ -63,6 +63,11 @@ launcher/assets/*.ico
 cache/
 output.txt.txt
 
+# AI session artifacts
+.specstory/
+*-output.md
+*-output.txt
+
 # Media (uploaded/generated)
 *.jpg
 *.jpeg

@@ -31,7 +31,7 @@ function Test-OdysseusPlugin {
         }
     }
 
-    $health = Invoke-OdysseusHttpGet -Url $Context.HealthUrl -TimeoutSec 2
+    $health = Invoke-OdysseusHttpGet -Url $Context.HealthUrl -TimeoutSec 1
     if (-not $health -or $health.StatusCode -ge 400) {
         return @{
             Status  = 'warn'
@@ -41,7 +41,7 @@ function Test-OdysseusPlugin {
         }
     }
 
-    $ready = Invoke-OdysseusHttpGet -Url $Context.ReadyUrl -TimeoutSec 3
+    $ready = Invoke-OdysseusHttpGet -Url $Context.ReadyUrl -TimeoutSec 1
     $readyOk = $ready -and $ready.StatusCode -eq 200
     $detail = if ($readyOk) { 'Health + readiness OK' } else { 'Live but readiness check failed' }
 

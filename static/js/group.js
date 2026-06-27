@@ -818,28 +818,36 @@ async function _streamToHolder(modelIdx, sessionId, msg, holderEl, abortCtrl) {
 
           // Text delta (OpenAI format)
           if (json.choices?.[0]?.delta?.content) {
-            if (_firstToken) { _firstToken = false; if (holderEl._spinner) { holderEl._spinner.destroy(); delete holderEl._spinner; } bodyEl.innerHTML = ''; }
             accumulated += json.choices[0].delta.content;
-            bodyEl.innerHTML = markdownModule.processWithThinking(
-              markdownModule.squashOutsideCode(accumulated)
-            );
-            uiModule.scrollHistory();
+            const squashed = markdownModule.squashOutsideCode(accumulated);
+            // Don't render while inside an unclosed think block — the stray-opener
+            // handler in extractThinkingBlocks would make thinking text visible.
+            // Keep the spinner until the block closes.
+            if (!markdownModule.hasUnclosedThinkTag(squashed)) {
+              if (_firstToken) { _firstToken = false; if (holderEl._spinner) { holderEl._spinner.destroy(); delete holderEl._spinner; } bodyEl.innerHTML = ''; }
+              bodyEl.innerHTML = markdownModule.processWithThinking(squashed);
+              uiModule.scrollHistory();
+            }
           }
           // Text delta (Odysseus format)
           else if (json.delta !== undefined) {
-            if (_firstToken) { _firstToken = false; if (holderEl._spinner) { holderEl._spinner.destroy(); delete holderEl._spinner; } bodyEl.innerHTML = ''; }
             // Handle thinking tags from vLLM
             let _d = json.delta;
             if (json.thinking) {
               if (!accumulated.includes('<think>')) _d = '<think>' + _d;
-            } else if (accumulated.includes('<think>') && !accumulated.includes('</think>')) {
-              _d = '</think>' + _d;
+              accumulated += _d;
+              // Still in thinking phase — leave spinner, don't render content
+            } else {
+              if (accumulated.includes('<think>') && !accumulated.includes('</think>')) {
+                _d = '</think>' + _d;
+              }
+              accumulated += _d;
+              if (_firstToken) { _firstToken = false; if (holderEl._spinner) { holderEl._spinner.destroy(); delete holderEl._spinner; } bodyEl.innerHTML = ''; }
+              bodyEl.innerHTML = markdownModule.processWithThinking(
+                markdownModule.squashOutsideCode(accumulated)
+              );
+              uiModule.scrollHistory();
             }
-            accumulated += _d;
-            bodyEl.innerHTML = markdownModule.processWithThinking(
-              markdownModule.squashOutsideCode(accumulated)
-            );
-            uiModule.scrollHistory();
           }
           // Agent tool events
           else if (json.type === 'tool_start') {

@@ -17,6 +17,7 @@ Endpoints:
 import json
 import logging
 import os
+import time
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Request, HTTPException
@@ -37,6 +38,10 @@ from src.mcp_bridge import get_permitted_tools
 logger = logging.getLogger(__name__)
 
 PANTHEON_ROOT = os.getenv("PANTHEON_ROOT", "/app/pantheon/01_Active_Profiles")
+
+# Single pending convene set by the desktop launcher.
+# Consumed once by the frontend on the next page load.
+_pending_convene: dict = {}
 
 # ---------------------------------------------------------------------------
 # Request / Response models
@@ -94,6 +99,7 @@ def _build_generate_fn(endpoint_url: str, model: str, headers: dict = None):
     returns (content: str, tool_calls: list); otherwise returns (str, []).
     """
     from src.llm_core import llm_call_async, llm_call_with_tools_async
+    from src.text_helpers import strip_think
 
     async def generate(messages: List[Dict], tools: Optional[List[Dict]] = None) -> tuple[str, list]:
         try:
@@ -101,12 +107,12 @@ def _build_generate_fn(endpoint_url: str, model: str, headers: dict = None):
                 content, tool_calls = await llm_call_with_tools_async(
                     endpoint_url, model, messages, tools, headers=headers or {}
                 )
-                return content or "", tool_calls
+                return strip_think(content or "", prose=False, prompt_echo=True), tool_calls
             else:
                 reply = await llm_call_async(
                     endpoint_url, model, messages, headers=headers or {}
                 )
-                return reply or "", []
+                return strip_think(reply or "", prose=False, prompt_echo=True), []
         except Exception as e:
             logger.error(f"VoidCat generate_fn failed: {e}")
             return f"[Error: {e}]", []
@@ -180,6 +186,32 @@ def setup_voidcat_routes(session_manager) -> APIRouter:
             "context_preview": ctx[:500] + "…" if len(ctx) > 500 else ctx,
             "tools": sorted(get_permitted_tools(name) - {"any"}),
         }
+
+    # ── POST /api/voidcat/convene-queue ──────────────────────────────────────
+    @router.post("/api/voidcat/convene-queue")
+    async def queue_convene(req: Request):
+        """Store a pending Board Room convene set by the desktop launcher."""
+        data = await req.json()
+        _pending_convene.clear()
+        _pending_convene.update({
+            "prompt": data.get("prompt", ""),
+            "spirits": data.get("spirits", ""),
+            "ts": time.time(),
+        })
+        return {"ok": True}
+
+    # ── GET /api/voidcat/convene-queue ────────────────────────────────────────
+    @router.get("/api/voidcat/convene-queue")
+    async def get_convene_queue():
+        """Retrieve and clear any pending Board Room convene (consumed once)."""
+        if not _pending_convene or time.time() - _pending_convene.get("ts", 0) > 30:
+            return {"prompt": None}
+        result = {
+            "prompt": _pending_convene.get("prompt"),
+            "spirits": _pending_convene.get("spirits", ""),
+        }
+        _pending_convene.clear()
+        return result
 
     # ── POST /api/voidcat/dispatch ────────────────────────────────────────
     @router.post("/api/voidcat/dispatch")

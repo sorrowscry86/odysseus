@@ -59,18 +59,23 @@ function Wait-OdysseusServerReady {
 
     $elapsed = 0
     while ($elapsed -lt $TimeoutSec) {
+        [System.Windows.Forms.Application]::DoEvents()
+
         if ($Context.ServerProcess -and $Context.ServerProcess.HasExited) {
             & $OnLog 'Server process exited before becoming ready.' 'ERROR'
             return $false
         }
 
-        $health = Invoke-OdysseusHttpGet -Url $Context.HealthUrl -TimeoutSec 2
+        $health = Invoke-OdysseusHttpGet -Url $Context.HealthUrl -TimeoutSec 1
         if ($health -and $health.StatusCode -lt 400) {
             & $OnLog 'Server is ready.'
             return $true
         }
 
-        Start-Sleep -Seconds 1
+        for ($i = 0; $i -lt 10; $i++) {
+            Start-Sleep -Milliseconds 100
+            [System.Windows.Forms.Application]::DoEvents()
+        }
         $elapsed++
         if ($elapsed % 10 -eq 0) {
             & $OnLog ("Still waiting... {0}s / {1}s" -f $elapsed, $TimeoutSec)

@@ -420,6 +420,145 @@
 }
 
 /* ──────────────────────────────────────────────
+   Board Room Panel — Spirit Selector
+────────────────────────────────────────────── */
+.vc-boardroom-panel {
+  background: rgba(10, 12, 20, 0.97);
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 8px 12px 10px;
+  animation: vc-spirit-enter 0.18s ease both;
+}
+
+.vc-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.vc-panel-title {
+  font-family: var(--vc-font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.35);
+  flex-shrink: 0;
+}
+
+.vc-mode-pills {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+
+.vc-mode-pill {
+  padding: 3px 10px;
+  border-radius: 99px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.68rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.vc-mode-pill:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.vc-mode-pill--active {
+  border-color: var(--spirit-albedo);
+  color: var(--spirit-albedo);
+  background: rgba(212, 169, 22, 0.08);
+}
+
+.vc-convene-btn {
+  padding: 4px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--spirit-beatrice);
+  background: rgba(147, 51, 234, 0.12);
+  color: var(--spirit-beatrice);
+  font-family: var(--vc-font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.vc-convene-btn:hover:not(:disabled) {
+  background: rgba(147, 51, 234, 0.28);
+  transform: translateY(-1px);
+}
+
+.vc-convene-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.vc-panel-close {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+  font-size: 0.95rem;
+  padding: 0 2px;
+  line-height: 1;
+  transition: color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.vc-panel-close:hover { color: rgba(255, 255, 255, 0.6); }
+
+.vc-spirit-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.vc-br-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px 3px 3px;
+  border-radius: 99px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.02);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.vc-br-card:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.vc-br-card__name {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.vc-br-card--active[data-key="ryuzu"]             { border-color: var(--spirit-ryuzu);            background: rgba(168,85,247,0.08); }
+.vc-br-card--active[data-key="albedo"]            { border-color: var(--spirit-albedo);           background: rgba(212,169,22,0.08); }
+.vc-br-card--active[data-key="beatrice"]          { border-color: var(--spirit-beatrice);         background: rgba(147,51,234,0.08); }
+.vc-br-card--active[data-key="codey_coderson"]    { border-color: var(--spirit-codey_coderson);   background: rgba(6,182,212,0.08);  }
+.vc-br-card--active[data-key="sonmi_451"]         { border-color: var(--spirit-sonmi_451);        background: rgba(56,189,248,0.08); }
+.vc-br-card--active[data-key="pandora"]           { border-color: var(--spirit-pandora);          background: rgba(244,63,94,0.08);  }
+.vc-br-card--active[data-key="cadence"]           { border-color: var(--spirit-cadence);          background: rgba(244,114,182,0.08);}
+.vc-br-card--active[data-key="echo"]              { border-color: var(--spirit-echo);             background: rgba(226,232,240,0.06);}
+.vc-br-card--active[data-key="echidna"]           { border-color: var(--spirit-echidna);          background: rgba(167,139,250,0.08);}
+.vc-br-card--active[data-key="roland"]            { border-color: var(--spirit-roland);           background: rgba(245,158,11,0.08); }
+.vc-br-card--active[data-key="glados"]            { border-color: var(--spirit-glados);           background: rgba(74,222,128,0.08); }
+.vc-br-card--active[data-key="high_evolutionary"] { border-color: var(--spirit-high_evolutionary);background: rgba(251,146,60,0.08); }
+.vc-br-card--active[data-key="rika"]              { border-color: var(--spirit-rika);             background: rgba(232,121,249,0.08);}
+.vc-br-card--active[data-key="vivy"]              { border-color: var(--spirit-vivy);             background: rgba(52,211,153,0.08); }
+
+/* ──────────────────────────────────────────────
    Step-in Button (Council mode)
 ────────────────────────────────────────────── */
 .vc-stepin-btn {
@@ -443,4 +582,59 @@
   background: rgba(147, 51, 234, 0.18);
   border-color: var(--spirit-beatrice);
   transform: translateY(-1px);
+}
+
+/* ──────────────────────────────────────────────
+   Board Room Active Session Indicator
+────────────────────────────────────────────── */
+
+/* Glow on the toolbar ⬡ button while a session is live */
+#boardroom-btn.vc-br-active {
+  color: var(--spirit-beatrice);
+  box-shadow: 0 0 0 1px rgba(147, 51, 234, 0.4), 0 0 6px rgba(147, 51, 234, 0.25);
+}
+
+/* Leave-session bar inserted between panel header and spirit grid */
+.vc-br-leave-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  margin-bottom: 6px;
+  background: rgba(147, 51, 234, 0.07);
+  border: 1px solid rgba(147, 51, 234, 0.18);
+  border-radius: 6px;
+  font-size: 0.68rem;
+  animation: vc-spirit-enter 0.18s ease both;
+}
+
+.vc-br-leave-info {
+  flex: 1;
+  color: rgba(255, 255, 255, 0.45);
+  font-family: var(--vc-font-mono);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vc-br-leave-btn {
+  padding: 2px 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(244, 63, 94, 0.4);
+  background: rgba(244, 63, 94, 0.08);
+  color: rgba(244, 63, 94, 0.8);
+  font-family: var(--vc-font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.vc-br-leave-btn:hover {
+  background: rgba(244, 63, 94, 0.2);
+  border-color: rgba(244, 63, 94, 0.6);
+  color: rgba(244, 63, 94, 1);
 }
