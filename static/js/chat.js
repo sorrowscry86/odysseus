@@ -203,17 +203,25 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
       setTimeout(() => _wireArrowUpRecall(document.getElementById('message')), 250);
     }
 
-    // Pre-fill prompt from ?prompt= URL param (set by the VoidCat Launcher Board Room tab)
-    const _launchPrompt = new URLSearchParams(window.location.search).get('prompt');
-    if (_launchPrompt) {
-      const _ta = document.getElementById('message');
-      if (_ta) {
-        _ta.value = _launchPrompt;
-        _ta.dispatchEvent(new Event('input'));
-        _ta.focus();
-      }
-      window.history.replaceState({}, '', window.location.pathname);
-    }
+    // Check for a pending Board Room convene posted by the VoidCat Launcher.
+    // Using a server-side queue avoids browser IPC stripping query params.
+    setTimeout(async () => {
+      try {
+        const _cr = await fetch(`${API_BASE}/api/voidcat/convene-queue`);
+        if (!_cr.ok) return;
+        const _cd = await _cr.json();
+        if (!_cd || !_cd.prompt) return;
+        if (_cd.spirits) window._voidcatLaunchSpirits = _cd.spirits;
+        const _ta = document.getElementById('message');
+        if (_ta) {
+          _ta.value = _cd.prompt;
+          _ta.dispatchEvent(new Event('input'));
+          _ta.focus();
+          const _sb = document.querySelector('.send-btn');
+          if (_sb && _sb.dataset.mode !== 'streaming') _sb.click();
+        }
+      } catch (_e) {}
+    }, 700);
   }
 
   // addMessage, createMsgFooter, displayMetrics, hideWelcomeScreen, showWelcomeScreen
@@ -992,7 +1000,30 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
       const _mightBeBoardRoom = msg.includes('@') || /lounge|hearth|shoot the breeze|convene all|@all/i.test(msg);
 
       try {
-        if (_mightBeBoardRoom) {
+        // Persist routing for an active Board Room session (no dispatch needed)
+        const _activeBR = window.VoidCatBoardroom?.getActiveSession?.();
+        if (_activeBR?.active) {
+          isBoardRoom = true;
+          boardroomMode = _activeBR.mode;
+          if (spinner && spinner.element && typeof spinner.updateMessage === 'function') {
+            const _queuedNames = _activeBR.spiritNames.join(' + ');
+            if (_queuedNames) spinner.updateMessage(`Board Room: ${_queuedNames}…`);
+          }
+          res = await fetch(`${API_BASE}/api/voidcat/${_activeBR.mode}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              prompt: msg,
+              spirits: _activeBR.spirits,
+              chair: _activeBR.chair,
+              max_rounds: _activeBR.mode === 'council' ? 10 : null,
+              endpoint_url: sessionModule.getCurrentEndpointUrl ? sessionModule.getCurrentEndpointUrl() : null,
+              model: modelName,
+              session_id: streamSessionId
+            }),
+            signal: abortCtrl.signal
+          });
+        } else if (_mightBeBoardRoom) {
         const dispatchRes = await fetch(`${API_BASE}/api/voidcat/dispatch`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1014,9 +1045,15 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
               if (_queuedNames) spinner.updateMessage(`Queuing: ${_queuedNames}…`);
             }
 
+            // For Hearth mode, the launcher may have pre-selected a spirit pool via ?spirits=
+            const _hearthPool = (decision.mode === 'hearth' && window._voidcatLaunchSpirits)
+              ? window._voidcatLaunchSpirits.split(',').map(s => s.trim()).filter(Boolean)
+              : null;
+            if (_hearthPool) window._voidcatLaunchSpirits = null; // consume once
+
             const payload = {
               prompt: msg,
-              spirits: decision.spirits,
+              spirits: _hearthPool || decision.spirits,
               chair: decision.chair,
               max_rounds: decision.mode === 'council' ? 10 : null,
               endpoint_url: sessionModule.getCurrentEndpointUrl ? sessionModule.getCurrentEndpointUrl() : null,
@@ -3298,7 +3335,7 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
             if (_box && sessionModule.getCurrentSessionId() === _timeoutSessionId) {
               var _timeoutMsg = document.createElement('div');
               _timeoutMsg.className = 'msg msg-ai';
-              _timeoutMsg.innerHTML = '<div class="role">Odysseus</div><div class="body" style="opacity:0.6;font-style:italic;">Research clarification timed out. Toggle research again to start over.</div>';
+              _timeoutMsg.innerHTML = '<div class="role">VoidCat Communicator</div><div class="body" style="opacity:0.6;font-style:italic;">Research clarification timed out. Toggle research again to start over.</div>';
               _box.appendChild(_timeoutMsg);
               uiModule.scrollHistory();
             }
