@@ -36,7 +36,7 @@ _SAFE_ROOTS = (
 def _is_safe_path(path: str) -> bool:
     try:
         real = os.path.realpath(os.path.abspath(path))
-        return any(real.startswith(r) for r in _SAFE_ROOTS)
+        return any(real == r or real.startswith(r + os.sep) for r in _SAFE_ROOTS)
     except Exception:
         return False
 
@@ -88,7 +88,7 @@ async def _search_content(pattern: str, path: str = "/app/src") -> str:
             return
         for dirpath, _, filenames in os.walk(root):
             for fname in filenames:
-                if fname.endswith((".py", ".md", ".json", ".txt", ".yml", ".yaml")):
+                if fname.endswith(_SEARCHABLE_EXTS):
                     yield os.path.join(dirpath, fname)
 
     for fpath in _walk(path):
@@ -634,11 +634,11 @@ COUNCIL_TOOL_SCHEMAS: list[dict] = [
     },
 ]
 
-# Map council tool names → mcp_bridge permission keys
+# Map council tool names → mcp_bridge permission keys (all use their own literal name)
 _PERM_MAP: dict[str, str] = {
     "read_file":        "read_file",
-    "list_files":       "glob",
-    "search_content":   "grep",
+    "list_files":       "list_files",
+    "search_content":   "search_content",
     "update_grimoire":  "update_grimoire",
     "scan_directory":   "scan_directory",
     "find_references":  "find_references",
@@ -646,6 +646,23 @@ _PERM_MAP: dict[str, str] = {
     "diff_sessions":    "diff_sessions",
     "verify_claim":     "verify_claim",
 }
+
+
+def _assert_registry_sync() -> None:
+    """Raise at import time if _EXECUTORS, COUNCIL_TOOL_SCHEMAS, and _PERM_MAP diverge."""
+    executor_keys = set(_EXECUTORS)
+    schema_keys = {s["function"]["name"] for s in COUNCIL_TOOL_SCHEMAS}
+    perm_keys = set(_PERM_MAP)
+    if executor_keys != schema_keys or executor_keys != perm_keys:
+        raise RuntimeError(
+            f"council_tools registry out of sync — "
+            f"executors={sorted(executor_keys)}, "
+            f"schemas={sorted(schema_keys)}, "
+            f"perm_map={sorted(perm_keys)}"
+        )
+
+
+_assert_registry_sync()
 
 
 def get_council_tools_for_spirit(spirit: str) -> list[dict]:
