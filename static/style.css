@@ -569,7 +569,7 @@ body.bg-pattern-sparkles {
       user-select: none;
       position: relative;
       top: 0;
-      left: -10px;
+      left: 0;
     }
     .sidebar-sep {
       display: none;
@@ -1898,6 +1898,11 @@ body.bg-pattern-sparkles {
       margin-right: 0.4rem;
       vertical-align: -0.15em;
       color: var(--brand-color, var(--red));
+    }
+    .welcome-logo-img {
+      max-width: 280px;
+      height: auto;
+      border-radius: 8px;
     }
     #welcome-screen .welcome-sub {
       font-size:0.85rem;
