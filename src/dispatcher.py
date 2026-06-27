@@ -31,6 +31,13 @@ def display_name(folder: str) -> str:
     """Public alias for _display_name. Maps a Pantheon folder name to a human display name."""
     return _display_name(folder)
 
+_FALLBACK_ROSTER: list[str] = [
+    "ryuzu", "albedo", "beatrice", "codey_coderson", "sonmi_451", "pandora",
+    "cadence", "echo", "echidna", "roland", "glados", "rika", "vivy",
+    "high_evolutionary",
+]
+
+
 def _load_spirit_roster() -> list[str]:
     """Discover spirit names from the mounted Pantheon volume."""
     global _KNOWN_SPIRITS
@@ -38,15 +45,15 @@ def _load_spirit_roster() -> list[str]:
         return _KNOWN_SPIRITS
     try:
         entries = [
-            e for e in os.listdir(PANTHEON_ROOT)
+            e.lower() for e in os.listdir(PANTHEON_ROOT)
             if os.path.isdir(os.path.join(PANTHEON_ROOT, e))
             and not e.startswith("_")
         ]
         _KNOWN_SPIRITS = entries
         logger.debug(f"Loaded spirit roster: {entries}")
     except Exception as e:
-        logger.error(f"Failed to load spirit roster: {e}")
-        _KNOWN_SPIRITS = []
+        logger.warning(f"Pantheon not reachable at '{PANTHEON_ROOT}', using built-in fallback roster: {e}")
+        return list(_FALLBACK_ROSTER)  # Don't cache — allows retry on next call
     return _KNOWN_SPIRITS
 
 
@@ -85,6 +92,11 @@ _FALLBACK_DOMAINS: dict[str, list[str]] = {
     "rika":             ["atmosphere", "sensory", "immersive", "recon", "narrative",
                          "emotional", "scene", "environment"],
     "echo":             ["mechanical", "general", "unsorted", "misc"],
+    "vivy":             ["context", "integrity", "verification", "drift", "continuity",
+                         "consistency", "audit", "session", "claim", "evidence",
+                         "contradiction", "discrepancy", "mismatch", "truth", "record",
+                         "gap", "divergence", "check", "verify", "experience", "subjective",
+                         "memory", "recall", "presence", "awareness", "state"],
 }
 
 
@@ -96,7 +108,18 @@ def _build_domain_index() -> dict[str, list[str]]:
 
     roster = _load_spirit_roster()
     for spirit in roster:
-        persona_path = os.path.join(PANTHEON_ROOT, spirit, "persona.md")
+        # Resolve actual directory case-insensitively — roster entries are lowercased
+        # but the filesystem (Linux container) may use capitalized dirs (e.g. "Vivy")
+        spirit_dir = os.path.join(PANTHEON_ROOT, spirit)
+        if not os.path.isdir(spirit_dir):
+            try:
+                for entry in os.listdir(PANTHEON_ROOT):
+                    if entry.lower() == spirit and os.path.isdir(os.path.join(PANTHEON_ROOT, entry)):
+                        spirit_dir = os.path.join(PANTHEON_ROOT, entry)
+                        break
+            except OSError:
+                pass
+        persona_path = os.path.join(spirit_dir, "persona.md")
         keywords: list[str] = []
 
         # Try to extract keywords from the live persona file

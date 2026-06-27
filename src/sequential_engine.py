@@ -215,7 +215,16 @@ async def _generate_response(
                 fn = tc.get("function", {})
                 tool_name = fn.get("name", "")
                 raw_args = fn.get("arguments", {})
-                args = raw_args if isinstance(raw_args, dict) else {}
+                if isinstance(raw_args, dict):
+                    args = raw_args
+                elif isinstance(raw_args, str):
+                    import json as _json
+                    try:
+                        args = _json.loads(raw_args)
+                    except (ValueError, _json.JSONDecodeError):
+                        args = {}
+                else:
+                    args = {}
                 result = await execute_council_tool(tool_name, args)
                 tool_call_id = tc.get("id", tool_name)
                 messages.append({
@@ -459,9 +468,18 @@ async def run_hearth(
         )
 
         if next_spirit is None:
-            # Nobody has anything to say — the hearth goes quiet
-            logger.debug("Hearth: no spirit scored above threshold. Going quiet.")
-            break
+            if turn_count == 0:
+                # Bootstrap: opening message (e.g. "lounge") carries no domain keywords,
+                # so the scorer returns nothing. Always produce an opening turn.
+                import random
+                candidates = [s for s in spirits if s != last_speaker]
+                if not candidates:
+                    break
+                next_spirit = random.choice(candidates)
+            else:
+                # Nobody has anything to say — the hearth goes quiet
+                logger.debug("Hearth: no spirit scored above threshold. Going quiet.")
+                break
 
         display = _display_name(next_spirit)
         yield TurnResult(
